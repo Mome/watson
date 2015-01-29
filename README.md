@@ -2,11 +2,12 @@
 This is the repository for an experimental Question-Answering-System developed in the context of the "Special Topics in Artificial Intelligence" WS14 course at the University of Osnabrück.
 
 ## Installation on Ubuntu
-´´´ bash
+```
 git clone https://github.com/mome/watson
 cd watson
 ./install_requirements.sh
-´´´
+```
+
 
 ### System Package Requirements :
 * python2.7
