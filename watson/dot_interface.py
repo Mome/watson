@@ -1,7 +1,7 @@
 import os
 
 from nltk.tree import Tree
-from utils import parse
+from language_processing import parse
 
 import configurations as conf
 

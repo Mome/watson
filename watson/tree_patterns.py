@@ -124,6 +124,7 @@ class TreePatternMatcher :
                 arg_terminals.append(arg)
             
             #print 'arg_terminals', arg_terminals
+            print 'looking for answer with ' + func + '...'
             output += [self.function_dict[func](*arg_terminals)]
 
         return output

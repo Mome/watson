@@ -1,5 +1,6 @@
-from os import popen
+from os import popen, devnull
 from string import punctuation
+from subprocess import call, PIPE
 
 import nltk
 from nltk.parse.stanford import StanfordParser
@@ -28,11 +29,14 @@ def text_to_speech(text, engine='google'):
         text = text.replace('`','')
         text = text.replace("'",'')
         text = text.replace("-",' ')
-        popen('./speech.sh ' + text)
+        #popen(conf.watson_path + conf.sep + 'speech.sh ' + text)
+        cmd = conf.watson_path + conf.sep + 'speech.sh ' + '"' + text + '"'
+        FNULL = open(devnull, 'w')
+        call(cmd.split(), stderr=FNULL)
     elif engine == 'espeak' :
         popen('espeak ' + '"' + text + '"')
     else :
-        print 'No such tos engine:', engine
+        print 'No such speech engine:', engine
         print text 
 
 
