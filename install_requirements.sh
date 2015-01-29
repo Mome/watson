@@ -1,16 +1,29 @@
+#!/bin/sh
+
 echo "Install system requirements ..."
-cat requirements.system | xargs sudo apt-get -q install
+sudo apt-get install $(grep -vE "^\s*#" requirements.system  | tr "\n" " ")
 
 echo "Install python requirements ..."
-sudo pip install -r /path/to/requirements.txt 
+sudo pip install -r requirements.txt
 
-echo "Download stanford-parser ..."
+echo "Downloading stanford-parser ..."
 wget http://nlp.stanford.edu/software/stanford-parser-full-2014-08-27.zip
-echo "Download stanford-tagger ..."
+echo "Downloading stanford-tagger ..."
 wget http://nlp.stanford.edu/software/stanford-postagger-2014-08-27.zip
-echo "Download stanford-ner-tagger ..."
+echo "Downloading stanford-ner-tagger ..."
 wget http://nlp.stanford.edu/software/stanford-ner-2014-08-27.zip
 
-unzip stanford-parser-full-2014-08-27.zip -d stanford-parser-full
-unzip stanford-postagger-2014-08-27.zip -d stanford-postagger
-unzip stanford-ner-2014-08-27.zip -d stanford-ner
+echo "Unzip folders ..."
+unzip stanford-parser-full-2014-08-27.zip  
+unzip stanford-postagger-2014-08-27.zip
+unzip stanford-ner-2014-08-27.zip
+
+echo "Rename folders ..."
+mv stanford-parser-full-2014-08-27 stanford-parser-full
+mv stanford-postagger-2014-08-27 stanford-postagger
+mv stanford-ner-2014-08-27 stanford-ner
+
+echo "Removing zip files ..."
+rm stanford-parser-full-2014-08-27.zip
+rm stanford-postagger-2014-08-27.zip
+rm stanford-ner-2014-08-27.zip
