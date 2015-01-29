@@ -13,3 +13,8 @@ This is the new repository for an experimental Question-Answering-System develop
 * html2text
 * rdflib
 * wikipedia
+
+## External Requirements :
+* Stanford Parser
+* Stanford NER-Tagger
+* Stanford POS-Tagger
