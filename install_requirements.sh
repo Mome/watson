@@ -2,7 +2,7 @@ echo "Install system requirements ..."
 cat requirements.system | xargs sudo apt-get -q install
 
 echo "Install python requirements ..."
-pip install -r /path/to/requirements.txt 
+sudo pip install -r /path/to/requirements.txt 
 
 echo "Download stanford-parser ..."
 wget http://nlp.stanford.edu/software/stanford-parser-full-2014-08-27.zip
