@@ -1,0 +1,13 @@
+what is DT NN -> wiki:NN
+what is NN -> wiki:NN
+what is DT NN -> wordnet:NN
+what is NN -> wordnet:NN
+what is DT NNS -> wordnet:NNS
+what is NNS -> wordnet:NNS
+what are NNS -> wordnet:NNS
+what are DT NNS -> wordnet:NNS
+what are NNP -> wordnet:NNP
+who is DT NN -> wordnet:NN
+who is DT NN -> wordnet:NN
+who is NN -> wordnet:NN
+what is the birthday of NNP -> dbpedia:NNP,birthDate
