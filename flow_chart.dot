@@ -1,0 +1,7 @@
+digraph {
+  question -> parse
+  parse -> "match patterns" [label="parsetree"]
+  "load pattern" -> "match patterns" [label="patterns"]
+  "match patterns" -> "find answers" [label="matches"]
+  "find answers" -> "select best answer" [label="answers"]
+}
