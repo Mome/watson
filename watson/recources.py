@@ -19,9 +19,7 @@ def get_dbpedia(topics, subject_object) :
     g = rdflib.Graph()
     for topic in topics :
         g.parse('http://dbpedia.org/resource/' + topic)
-
     results = g.subject_objects(rdflib.URIRef('http://dbpedia.org/ontology/' +  subject_object))
-
     return [str(r[1]) for r in results]
 
 

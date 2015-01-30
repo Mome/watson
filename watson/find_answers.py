@@ -20,7 +20,7 @@ def document_search(topic, filter_words, ner_types):
     # merge to one string
     articles = unicode('\n'.join(articles))
 
-    # filter non ascii
+    # filter non ascii characters (might not be a problem with python3)
     articles = filter(lambda x: x in string.printable, articles)
 
     print 'len articles:',len(articles)
@@ -30,6 +30,8 @@ def document_search(topic, filter_words, ner_types):
 
     print 'tokenize into words'
     paragraphs = [nltk.word_tokenize(p) for p in paragraphs]
+
+    # paragraphs = tokenize(articles,'pw') # use my own more generic method
 
     print 'translate abbreviations and slang ...'
     paragraphs = [canonicalize(p) for p in paragraphs]
@@ -46,14 +48,19 @@ def document_search(topic, filter_words, ner_types):
     if len(good_paragraphs) == 0 :
         print 'no paragraphs found'
         return
+
+    # flatten list of keyword list
     good_paragraphs = [item for sublist in good_paragraphs for item in sublist]
+    
     good_sentences = tokenize(" ".join(good_paragraphs))
 
     print 'perform a named entity recognition'
     tagged_sentences = ner_tagger.tag_sents(good_sentences)
 
     tagged_text = [item for sublist in tagged_sentences for item in sublist]
+
     print set(zip(*tagged_text)[1])
+
     solutions = {}
     for word, tag in tagged_text:
         if tag not in ner_types :

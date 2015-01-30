@@ -1,5 +1,7 @@
 from os.path import abspath, dirname, sep
 
+# sep is the os dependent path seperator
+
 watson_path = dirname(abspath(__file__))
 
 up = sep + '..' + sep
@@ -24,5 +26,6 @@ stanford_postagger = stanford_pos_path + sep +'stanford-postagger.jar'
 tree_patterns_path =  watson_path + sep + 'pattern_list'
 pattern_semantic_separator = '->'
 image_viewer = 'gnome-open'
+
 
 del abspath, dirname

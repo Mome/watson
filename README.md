@@ -8,7 +8,6 @@ cd watson
 ./install_requirements.sh
 ```
 
-
 ### System Package Requirements :
 * python2.7
 * python-pip
@@ -32,7 +31,7 @@ cd watson
 - integrate document_search() into QA
   - some function from question to document_search() call (question types)
   - answer generation (answer types)
-
+- document_search(): recognize compound terms
 - document_search(): introduce answer confidence
   - keyword to NER-match distance
   - NER-match in same sentence/subsentence (not only in paragraph)

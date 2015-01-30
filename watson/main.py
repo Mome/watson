@@ -6,8 +6,8 @@ import string
 import sys
 
 import configurations as conf
-import dot_interface
-from language_processing import parse, text_to_speech
+import draw_graph
+from language_processing import parse, text_to_speech, named_entity_recognition
 from tree_patterns import load_pattern_list, TreePatternMatcher, MatchTree
 
 class Watson :
@@ -65,6 +65,8 @@ class Watson :
         voice = self.voices[self.voice]
 
         print "parsing sentence ..."
+        # use stanford parser to create parsetrees (multiple parsetrees for multiple sentences)
+        # TODO: parse only handles single sentences. Split into sentences.
         trees = parse(sent)
 
         pattern_list, semantic_translations = load_pattern_list()
@@ -72,6 +74,7 @@ class Watson :
         for i,tree in enumerate(trees) :
             tree = tree[0] # cut root node
 
+            # print text representation of parsetree
             if not self.silent :
                 print
                 print '====================================================='
@@ -141,6 +144,7 @@ class Console(cmd.Cmd):
         self.intro = "WATSON-CONSOLE\nAsk me any question:"
         self.prompt = '~> '
         self.watson = watson
+        self.draw_parsetree_engine = 'nltk'
         watson.say_hello()
 
     def emptyline(self) :
@@ -149,17 +153,24 @@ class Console(cmd.Cmd):
     def default(self, line) :
         self.watson.answer_question(line)
 
-    def do_ner(self, line):
-        print 'not yet implemented'
+    def do_ner(self, sent):
+        tagged_sent = named_entity_recognition(sent)
+        print
+        for ts in tagged_sent :
+            print ts[0] + '\t' + ts[1]
+        print
 
     def do_parse(self,sent):
         trees = parse(sent)
-        for i,tree in enumerate(trees) :
+        """for i,tree in enumerate(trees) :
             print tree
             png_path = 'temp_tree_' + str(i) + '.png'
             dot_code = dot_interface.nltk_tree_to_dot(tree)
             dot_interface.dot_to_image(dot_code, 'temp_tree_' + str(i))
-            os.popen(conf.image_viewer + ' ' + png_path)
+            os.popen(conf.image_viewer + ' ' + png_path)"""
+        for i,tree in enumerate(trees) :
+            print tree
+            draw_graph.draw_parsetree(tree, self.draw_parsetree_engine, i)
 
     def do_speech(self, line):
         self.watson.toggle_speech()
@@ -186,8 +197,9 @@ class Console(cmd.Cmd):
         except :
             print 'wrong max usage!'
 
-    def do_hello(self, arg):
-        print "hello again", arg, "!"
+    def help_max(self):
+        print "syntax: max $NUMBER",
+        print "-- sets the number of maximal answers to $NUMBER"
 
     def help_hello(self):
         print "syntax: hello [message]",

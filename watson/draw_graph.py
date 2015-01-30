@@ -1,12 +1,29 @@
 import os
+import subprocess
 
 from nltk.tree import Tree
-from language_processing import parse
 
 import configurations as conf
 
 
+def draw_parsetree(tree, engine='nltk', id_=0):
+    """ Takes a sentence and draws the parsetree in an extra window. """
+
+    # if tree in string representation convert to nltk.Tree object
+    if isinstance(tree,(str,unicode)):
+        tree = Tree.fromstring(tree)
+
+    if engine == 'nltk' :
+        tree.draw()
+
+    elif engine == 'graphviz' :
+        png_path = 'temp_tree_' + str(id_) + '.png'
+        dot_code = nltk_tree_to_dot(tree)
+        dot_to_image(dot_code, 'temp_tree_' + str(id_))
+        subprocess.call([conf.image_viewer, png_path])
+
 def nltk_tree_to_dot(tree) :
+    """ Transforms a nltk.Tree in a digraph dotcode"""
     
     dot_code = 'digraph graphname {\n'
     dot_code += str(0) + ' [label="' + tree.label() + '"];\n'
@@ -15,7 +32,6 @@ def nltk_tree_to_dot(tree) :
         dot_code = ""
 
         father_node_number = node_number
-
 
         for child in tree:
 
@@ -41,6 +57,7 @@ def nltk_tree_to_dot(tree) :
 
 
 def dot_to_image(dot_code, name) :
+    """ Creates an png image from dot-code"""
     tmp_file = 'temp.dot'
     f = open(tmp_file, 'w')
     f.write(dot_code)
@@ -49,23 +66,9 @@ def dot_to_image(dot_code, name) :
     os.remove('temp.dot')
 
 
-# parses a sentence and draws a tree / accepts also directly accepts parsetrees
-def draw_parsetree(arg, cut_root_node=True):
-    
-    if isinstance(arg,(str,unicode)):
-        arg = parse(arg)
-    if isinstance(arg, Tree):
-        arg = [arg]
-    
-    for i,tree in enumerate(arg) :
-        if cut_root_node : tree = tree[0]
-        png_path = 'temp_tree_' + str(i) + '.png'
-        dot_code = nltk_tree_to_dot(tree)
-        dot_to_image(dot_code, 'temp_tree_' + str(i))
-        os.popen(conf.image_viewer + ' ' + png_path)
-
 
 ### Rest is unimportant ...
+# functions to draw graphs or triple stores
 
 def build_triple_code(tripel_list):
     dot_code = ""

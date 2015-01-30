@@ -8,51 +8,50 @@ from nltk.tag.stanford import NERTagger, POSTagger
 
 import configurations as conf
 
-ner_tagger = NERTagger(conf.stanford_ner_classifier, conf.stanford_ner)
-parser = StanfordParser(conf.stanford_parser,conf.stanford_models)
 
 def parse(text, normalize=True) :
     """Parses string, iterable of strings or nested iterables of strings"""
+
+    # saves stanford_parser as global variable,
+    # such that it is not created everytime parse is executed
+    if not 'stanford_parser' in globals():
+        global stanford_parser
+        stanford_parser = StanfordParser(conf.stanford_parser,conf.stanford_models)
     
     if hasattr(text, '__iter__') :
         return [parse(t) for t in text]
     else :
         if normalize : text = canonicalize(text)
-        trees = parser.raw_parse(text)
+        trees = stanford_parser.raw_parse(text)
     return trees
 
 
-def text_to_speech(text, engine='google'):
-    if engine == 'google' :
-        text = text.replace('(',' ')
-        text = text.replace(')',' ')
-        text = text.replace('`','')
-        text = text.replace("'",'')
-        text = text.replace("-",' ')
-        #popen(conf.watson_path + conf.sep + 'speech.sh ' + text)
-        cmd = conf.watson_path + conf.sep + 'speech.sh ' + '"' + text + '"'
-        FNULL = open(devnull, 'w')
-        call(cmd.split(), stderr=FNULL)
-    elif engine == 'espeak' :
-        popen('espeak ' + '"' + text + '"')
-    else :
-        print 'No such speech engine:', engine
-        print text 
-
-
 def pos_tag(sent, tagger='stanford'):
-    stanford_postagger = POSTagger(conf.stanford_pos_model, path_to_jar=conf.stanford_postagger, encoding='UTF-8')
+    
+    # saves pos_tagger as global variable,
+    # such that it is not created everytime pos_tag is executed
+    if not 'pos_tagger' in globals():
+        global pos_tagger
+        pos_tagger = POSTagger(conf.stanford_pos_model, path_to_jar=conf.stanford_postagger, encoding='UTF-8')
+
     if tagger == 'nltk' :
-        tokens = nltk.word_tokenize(sent)
+        tokens = tokenize(sent, 's')
         return nltk.pos_tag(tokens)
     elif tagger == 'stanford' :
         tokens = tokenize(sent)
-        return stanford_postagger.tag(tokens)
+        return pos_tagger.tag(tokens)
     else :
         raise ValueError('No such tagger: ' + tagger)
 
 
 def named_entity_recognition(sent, silent=True) :
+
+    # saves ner_tagger as global variable,
+    # such that it is not created everytime named_entity_recognition is executed
+    if not 'ner_tagger' in globals():
+        global ner_tagger
+        ner_tagger = NERTagger(conf.stanford_ner_classifier, conf.stanford_ner)
+
     if type(sent) in [str,unicode]:
         sent = nltk.word_tokenize(sent)
     tagged = ner_tagger.tag(sent)
@@ -60,25 +59,83 @@ def named_entity_recognition(sent, silent=True) :
         print 'ner-tags:',tagged
     return tagged
 
-def normalize(text) :
-    tokens = tokenize(text)
-    # 3) convert numbers
-    # 4) remove none ascii characters
-    # 5) text canonicalization
-    # 6) remove stop words (to common words)
+
+def tokenize(text_structure, types='psw'):
+    """ splits a text into list of paragrpahs
+        a paragraph is represented by a list of sentences
+        a sentence is representerd by a list of words and puctuation """
+
+    #--> maybe 'text tilling' algorithm to split into multi-paragraph subtopics
+
+    # split into paragraphs
+    if 'p' in types :
+        text_structure = _paragraph_tokenize(text_structure)
+
+    # split into sentences
+    if 's' in types :
+        text_structure = _sent_tokenize(text_structure)
+
+    # word tokenization
+    if 'w' in types :
+        text_structure = _word_tokenize(text_structure)
+
+    return text_structure
 
 
-def tokenize(arg):
+def text_to_speech(text, engine='google'):
 
-    if not hasattr(arg, '__iter__') :
-        arg = nltk.sent_tokenize(arg)
+    if engine == 'google' :
+        text = text.replace('(',' ')
+        text = text.replace(')',' ')
+        text = text.replace('`','')
+        text = text.replace("'",'')
+        text = text.replace("-",' ')
 
-    list_of_wordlists = [nltk.word_tokenize(sent) for sent in arg]
+        # call the speech.sh bash-script with text
+        cmd = conf.watson_path + conf.sep + 'speech.sh ' + '"' + text + '"'
+        FNULL = open(devnull, 'w') # used to suppress error messages from mplayer
+        call(cmd.split(), stderr=FNULL)
 
-    return list_of_wordlists
+    elif engine == 'espeak' :
+        cmd = 'espeak ' + '"' + text + '"'
+        call(cmd.split())
+
+    else :
+        print 'No such speech engine:', engine
+
+
+def _paragraph_tokenize(text_structure):
+    if hasattr(text_structure, '__iter__') :
+        text_structure = [paragraph_tokenize(substructure) for substructure in text_structure]
+    else :
+        # split into paragraphs
+        text_structure = text_structure.split('\n')
+        # remove leading and trailing whitespace characters of each paragraph
+        text_structure = [sts.strip() for sts in text_structure]
+        # remove empty paragraphs
+        text_structure = [sts for sts in text_structure if sts!='']
+    return text_structure
+
+
+def _sent_tokenize(text_structure):
+    if hasattr(text_structure, '__iter__') :
+        text_structure = [sent_tokenize(substructure) for substructure in text_structure]
+    else :
+        text_structure = nltk.sent_tokenize(text_structure)
+    return text_structure
+
+
+def _word_tokenize(text_structure):
+    if hasattr(text_structure, '__iter__') :
+        text_structure = [word_tokenize(substructure) for substructure in text_structure]
+    else :
+        text_structure = nltk.word_tokenize(text_structure)
+    return text_structure
 
 
 def untokenize(tokens) :
+    """ transforms an arbitrarily deep list of list of words
+        into a string, so basically reverses the tokenization process """
     if tokens and hasattr(tokens[0], '__iter__') :
         return [untokenize(t) for t in tokens]
     return "".join([" "+i if not i.startswith("'") and i not in punctuation else i for i in tokens]).strip()
@@ -104,6 +161,7 @@ def canonicalize(words):
         return untokenize(words)
     else :
         return words
+
 
 _transform_dict = {
     
@@ -146,7 +204,6 @@ _transform_dict = {
     "would't" : "would not",
     "wanna" : "want to",
     "gonna" : "going to"
-
 }
 
 _abbreviations = {
