@@ -13,6 +13,7 @@ def load_pattern_list():
 
     with open(tree_patterns_path) as pattern_file:
         pattern_list = pattern_file.readlines()
+
     #maybe just use for instead of list_comprehentions
     pattern_list = [line.split(pattern_semantic_separator) for line in pattern_list]
 
@@ -34,8 +35,8 @@ class TreePatternMatcher :
                         'wordnet' : res.get_wordnet_definition,
                         'wiki' : res.get_first_wikipedia_sentences }
 
-    def match_all(self, match_tree, whole_sentence):
-        match_tree = self._transform_match_tree(match_tree)
+    def match_all(self, tree, whole_sentence):
+        match_tree = TreePatternMatcher._transform_match_tree(tree)
         matches = []
         for pattern in self.pattern_list :
             #print pattern
@@ -47,6 +48,8 @@ class TreePatternMatcher :
     def match_pattern(self, pattern, match_tree, whole_sentence=False):
 
         pattern = self._transform_pattern(pattern)
+
+        isinstance(match_tree, (str,unicode,Tree))
 
         if whole_sentence :
             starters = match_tree.follower_dict[None]
@@ -104,10 +107,6 @@ class TreePatternMatcher :
 
         match_labels = [m.label() for m in match]
         match_terminals = [" ".join(MatchTree.get_terminals(m)) for m in match]
-        #print
-        #print 'match_labels', match_labels
-        #print 'match_terminals', match_terminals
-        #print semantic
         sem_func, sem_args = zip(*[s.split(':') for s in semantic])
         sem_args = [a.split(',') for a in sem_args]
         
@@ -142,17 +141,17 @@ class TreePatternMatcher :
         return pattern
 
 
-    def _transform_match_tree(self, match_tree):
+    @classmethod
+    def _transform_match_tree(cls, tree):
+        """ converts a Tree (string or nltk string) into a MatchTree """
 
-        if isinstance(match_tree, (str,unicode,Tree)) :
-            match_tree = MatchTree(match_tree)
-        elif not isinstance(match_tree, MatchTree) :
-            raise Exception('Type: ' + str(type(match_tree)) + \
+        if isinstance(tree, (str,unicode,Tree)) :
+            match_tree = MatchTree(tree)
+        elif not isinstance(tree, MatchTree) :
+            raise Exception('Type: ' + str(type(tree)) + \
                 ' not convertable to MatchTree !')
 
         return match_tree
-
-
     
 
 class MatchTree :

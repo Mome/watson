@@ -14,7 +14,7 @@ class Watson :
 
     def __init__(self):
 
-        self.speech = True # activates speech synthesis
+        self.speech = False # activates speech synthesis
         self.silent = True # additional output for question processing
         self.max_answer_number = 1 
         self.voice = 0
@@ -77,11 +77,9 @@ class Watson :
                 print '====================================================='
                 print 'Parse Tree:', tree
 
-            # Creates a matchtree (a parsetree with additional properties to match the patterns)
-            match_tree = MatchTree(tree)
-
             if self.silent: print 'matching patterns ...'
-            all_matches = self.matcher.match_all(match_tree, self.whole_sentence)
+            # try to match patterns of file pattern_list in parsetree of sentence
+            all_matches = self.matcher.match_all(tree, self.whole_sentence)
             
             # print matches of parsetree
             if not self.silent :
@@ -102,10 +100,12 @@ class Watson :
                 if self.speech : text_to_speech(no_match,voice)
                 return
 
-            # find answers for 
+            # assigns a function call to each match
+            # i.e.: looks for answers to the question
+            # this is still messy and might need an own class
             answers = self.matcher.semantics_all(all_matches)
 
-            # I have no idea
+            # I have no idea what is does
             answers = list(chain(*answers))
 
             # if no answers have been found stop at this point
