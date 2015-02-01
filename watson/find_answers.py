@@ -1,40 +1,43 @@
 from collections import Counter
 import os
 import string
-from time imporcreatt sleep
 
 import nltk
 
-import dot_interface
 import configurations as conf
-from recources import get_wikipedia_text
-from tree_patterns import TreePatternMatcher, MatchTree, load_pattern_list
-from language_processing import text_to_speech, ner, canonicalize, tokenize, ner_tagger
+import recources
+from tree_patterns import TreePatternMatcher, load_pattern_list
+import language_processing as nlp
+
+def document_search_wrapper(topics, filter_words, ner_types) :
+    answer_candidates = document_search(topics, filter_words, ner_types)
+    return select_best_answer(answer_candidates)
 
 
-def document_search(topic, filter_words, ner_types):
+def document_search(topics, filter_words, ner_types):
+
+    if filter_words in [str,unicode] :
+        filter_words = [filter_words]
+    if ner_types in [str,unicode] :
+        ner_types = [ner_types]
+
     print 'get articles from wikipedia'
-    articles = get_wikipedia_text(topic,lang='en',summary=False)
-    articles += get_wikipedia_text(topic,lang='simple',summary=False)
+    articles = recources.get_corpus(topics)
 
     # merge to one string
-    articles = unicode('\n'.join(articles))
+    text = unicode('\n'.join(articles))
 
     # filter non ascii characters (might not be a problem with python3)
-    articles = filter(lambda x: x in string.printable, articles)
+    text = filter(lambda x: x in string.printable, text)
 
-    print 'len articles:',len(articles)
+    print len(text), 'characters in text'
 
-    # split in paragraphs
-    paragraphs = articles.split('\n')
-
-    print 'tokenize into words'
-    paragraphs = [nltk.word_tokenize(p) for p in paragraphs]
-
-    # paragraphs = tokenize(articles,'pw') # use my own more generic method
+    # split into paragraphs and paragraphs into list of words
+    paragraphs = nlp.tokenize(text,'pw')
+    print 'number of paragraphs', len(paragraphs)
 
     print 'translate abbreviations and slang ...'
-    paragraphs = [canonicalize(p) for p in paragraphs]
+    paragraphs = [nlp.canonicalize(p) for p in paragraphs]
 
     print 'check each paragraph if it contains a keyword'
     good_paragraphs = []
@@ -52,13 +55,14 @@ def document_search(topic, filter_words, ner_types):
     # flatten list of keyword list
     good_paragraphs = [item for sublist in good_paragraphs for item in sublist]
     
-    good_sentences = tokenize(" ".join(good_paragraphs))
+    good_sentences = nlp.tokenize(" ".join(good_paragraphs))[0]
 
     print 'perform a named entity recognition'
-    tagged_sentences = ner_tagger.tag_sents(good_sentences)
+    tagged_sentences = nlp.ner_tag(good_sentences)
 
     tagged_text = [item for sublist in tagged_sentences for item in sublist]
 
+    # prints ner tags
     print set(zip(*tagged_text)[1])
 
     solutions = {}

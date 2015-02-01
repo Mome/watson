@@ -44,19 +44,29 @@ def pos_tag(sent, tagger='stanford'):
         raise ValueError('No such tagger: ' + tagger)
 
 
-def named_entity_recognition(sent, silent=True) :
+def ner_tag(sents, silent=True) :
+
+    if sents == '' or sents == [] :
+        return []
 
     # saves ner_tagger as global variable,
-    # such that it is not recreated everytime named_entity_recognition is executed
+    # such that it is not recreated everytime ner_tag is executed
     if not 'ner_tagger' in globals():
         global ner_tagger
         ner_tagger = NERTagger(conf.stanford_ner_classifier, conf.stanford_ner)
 
     # if sentence not tokenized
-    if type(sent) in [str,unicode] :
-        sent = tokenize(sent,'w')
+    if type(sents) in [str,unicode] :
+        sents = tokenize(sents,'sw')
 
-    tagged = ner_tagger.tag(sent)
+    # bring input sents in right form
+    elif type(sents[0]) in [str,unicode] :
+        if ' ' in sents[0] :
+            sents = [tokenize(s,'w') for s in sents]
+        else :
+            sents = [sents]
+
+    tagged = ner_tagger.tag_sents(sents)
 
     if not silent :
         print 'ner-tags:',tagged
@@ -88,7 +98,7 @@ def tokenize(text_structure, types='psw') :
 
 def _paragraph_tokenize(text_structure):
     if hasattr(text_structure, '__iter__') :
-        text_structure = [paragraph_tokenize(substruc) for substruc in text_structure]
+        text_structure = [_paragraph_tokenize(substruc) for substruc in text_structure]
     else :
         # split into paragraphs
         text_structure = text_structure.split('\n')
@@ -101,7 +111,7 @@ def _paragraph_tokenize(text_structure):
 
 def _sent_tokenize(text_structure):
     if hasattr(text_structure, '__iter__') :
-        text_structure = [sent_tokenize(substruc) for substruc in text_structure]
+        text_structure = [_sent_tokenize(substruc) for substruc in text_structure]
     else :
         text_structure = nltk.sent_tokenize(text_structure)
     return text_structure
@@ -109,7 +119,7 @@ def _sent_tokenize(text_structure):
 
 def _word_tokenize(text_structure):
     if hasattr(text_structure, '__iter__') :
-        text_structure = [word_tokenize(substruc) for substruc in text_structure]
+        text_structure = [_word_tokenize(substruc) for substruc in text_structure]
     else :
         text_structure = nltk.word_tokenize(text_structure)
     return text_structure
@@ -277,8 +287,6 @@ _arithmetic_dict = {
     '^' : '**',
     '/' : '/' 
 }
-
-ner = named_entity_recognition
 
 """def flatten(nested_list):
     for i,item in enumerate(nested_list):

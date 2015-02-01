@@ -6,6 +6,7 @@ from copy import copy
 from nltk.tree import Tree, ParentedTree
 
 from configurations import tree_patterns_path, pattern_semantic_separator
+#import find_answers # recursive import !!
 import recources as res
 
 
@@ -33,7 +34,8 @@ class TreePatternMatcher :
 
         self.function_dict = {'dbpedia' : res.dbpedia_wrapper,
                         'wordnet' : res.get_wordnet_definition,
-                        'wiki' : res.get_first_wikipedia_sentences }
+                        'wiki' : res.get_first_wikipedia_sentences}
+                        # 'search' : find_answers.document_search_wrapper }
 
     def match_all(self, tree, whole_sentence):
         match_tree = TreePatternMatcher._transform_match_tree(tree)

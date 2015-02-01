@@ -10,6 +10,20 @@ from pygoogle import pygoogle
 from language_processing import tokenize
 
 
+def get_corpus(keywords):
+    """ wrapper method to get topic specific documents of different sources """
+
+    if type(keywords) in [str,unicode]:
+        keywords = [keywords]
+
+    corpus = []
+    for kw in keywords :
+        corpus += get_wikipedia_text(kw,'en',summary=False)
+        corpus += get_wikipedia_text(kw,'simple',summary=False)
+    
+    return corpus
+
+
 def get_wordnet_definition(word):
     synsets = wordnet.synsets(word)
     return [syn.definition() for syn in synsets]
@@ -22,7 +36,6 @@ def get_dbpedia(topics, subject_object) :
     results = g.subject_objects(rdflib.URIRef('http://dbpedia.org/ontology/' +  subject_object))
     return [str(r[1]) for r in results]
 
-
 def dbpedia_wrapper(topics, subject_object):
     #print 'called dbpedia with', topics, subject_object
     if type(topics) not in [list,tuple] :
@@ -30,7 +43,6 @@ def dbpedia_wrapper(topics, subject_object):
     results = get_dbpedia(topics, subject_object)
     #print 'results', results
     return ['The ' + subject_object + ' of ' + ', '.join(topics).replace('_',' ') + ' is ' + r for r in results]
-
 
 def get_first_wikipedia_sentences(word,sent_number=2):
     wt = get_wikipedia_text(word)[0]

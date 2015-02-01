@@ -13,8 +13,8 @@ stanford_models = stanford_path + sep + 'stanford-parser-3.4.1-models.jar'
 
 # STANFORD NAMED ENTITY TAGGER
 stanford_ner_path = abspath(watson_path + up + 'stanford-ner')
-#stanford_ner_classifier = stanford_ner_path + sep + 'classifiers' + sep + 'english.all.3class.distsim.crf.ser.gz'
-stanford_ner_classifier = stanford_ner_path + sep + 'classifiers' + sep + 'english.muc.7class.distsim.crf.ser.gz'
+stanford_ner_classifier = stanford_ner_path + sep + 'classifiers' + sep + 'english.all.3class.distsim.crf.ser.gz'
+#stanford_ner_classifier = stanford_ner_path + sep + 'classifiers' + sep + 'english.muc.7class.distsim.crf.ser.gz'
 stanford_ner = stanford_ner_path + sep + 'stanford-ner.jar'
 
 # STANFORD PART OF SPEECH TAGGER

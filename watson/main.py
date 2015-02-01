@@ -7,7 +7,7 @@ import sys
 
 import configurations as conf
 import draw_graph
-from language_processing import parse, text_to_speech, named_entity_recognition
+from language_processing import parse, text_to_speech, ner_tag
 from tree_patterns import load_pattern_list, TreePatternMatcher, MatchTree
 
 class Watson :
@@ -144,7 +144,7 @@ class Console(cmd.Cmd):
         self.watson.answer_question(line)
 
     def do_ner(self, sent):
-        tagged_sent = named_entity_recognition(sent)
+        tagged_sent = ner_tag(sent)
         print
         for ts in tagged_sent :
             print ts[0] + '\t' + ts[1]
@@ -152,15 +152,11 @@ class Console(cmd.Cmd):
 
     def do_parse(self,sent):
         trees = parse(sent)
-        """for i,tree in enumerate(trees) :
-            print tree
-            png_path = 'temp_tree_' + str(i) + '.png'
-            dot_code = dot_interface.nltk_tree_to_dot(tree)
-            dot_interface.dot_to_image(dot_code, 'temp_tree_' + str(i))
-            os.popen(conf.image_viewer + ' ' + png_path)"""
+       
         for i,tree in enumerate(trees) :
             print tree
-            draw_graph.draw_parsetree(tree, self.draw_parsetree_engine, i)
+            if self.draw_parsetree_engine :
+                draw_graph.draw_parsetree(tree, self.draw_parsetree_engine, i)
 
     def do_speech(self, line):
         self.watson.toggle_speech()
