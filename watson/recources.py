@@ -2,12 +2,12 @@ import string
 from urllib2 import urlopen
 
 from html2text import html2text
-import nltk
 from nltk.corpus import wordnet
 import rdflib
 import wikipedia as wiki
 
 from pygoogle import pygoogle
+from language_processing import tokenize
 
 
 def get_wordnet_definition(word):
@@ -35,7 +35,7 @@ def dbpedia_wrapper(topics, subject_object):
 def get_first_wikipedia_sentences(word,sent_number=2):
     wt = get_wikipedia_text(word)[0]
     wt = filter(lambda x: x in string.printable, wt)
-    wt = nltk.sent_tokenize(wt)
+    wt = tokenize(wt,'s')
     if len(wt) > sent_number:
         wt = wt[:sent_number]
     return [" ".join(wt)]

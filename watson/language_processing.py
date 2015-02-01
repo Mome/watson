@@ -9,12 +9,12 @@ from nltk.tag.stanford import NERTagger, POSTagger
 import configurations as conf
 
 
-def parse(text, normalize=True) :
+def parse(text, normalize=True) : #ToDo: change behavior
     """Parses string, iterable of strings or nested iterables of strings"""
 
     # saves stanford_parser as global variable,
-    # such that it is not created everytime parse is executed
-    if not 'stanford_parser' in globals():
+    # such that it is not recreated everytime parse is executed
+    if not 'stanford_parser' in globals() :
         global stanford_parser
         stanford_parser = StanfordParser(conf.stanford_parser,conf.stanford_models)
     
@@ -29,7 +29,7 @@ def parse(text, normalize=True) :
 def pos_tag(sent, tagger='stanford'):
     
     # saves pos_tagger as global variable,
-    # such that it is not created everytime pos_tag is executed
+    # such that it is not recreated everytime pos_tag is executed
     if not 'pos_tagger' in globals():
         global pos_tagger
         pos_tagger = POSTagger(conf.stanford_pos_model, path_to_jar=conf.stanford_postagger, encoding='UTF-8')
@@ -38,7 +38,7 @@ def pos_tag(sent, tagger='stanford'):
         tokens = tokenize(sent, 's')
         return nltk.pos_tag(tokens)
     elif tagger == 'stanford' :
-        tokens = tokenize(sent)
+        tokens = tokenize(sent,'w')
         return pos_tagger.tag(tokens)
     else :
         raise ValueError('No such tagger: ' + tagger)
@@ -47,20 +47,24 @@ def pos_tag(sent, tagger='stanford'):
 def named_entity_recognition(sent, silent=True) :
 
     # saves ner_tagger as global variable,
-    # such that it is not created everytime named_entity_recognition is executed
+    # such that it is not recreated everytime named_entity_recognition is executed
     if not 'ner_tagger' in globals():
         global ner_tagger
         ner_tagger = NERTagger(conf.stanford_ner_classifier, conf.stanford_ner)
 
-    if type(sent) in [str,unicode]:
-        sent = nltk.word_tokenize(sent)
+    # if sentence not tokenized
+    if type(sent) in [str,unicode] :
+        sent = tokenize(sent,'w')
+
     tagged = ner_tagger.tag(sent)
+
     if not silent :
         print 'ner-tags:',tagged
+
     return tagged
 
 
-def tokenize(text_structure, types='psw'):
+def tokenize(text_structure, types='psw') :
     """ splits a text into list of paragrpahs
         a paragraph is represented by a list of sentences
         a sentence is representerd by a list of words and puctuation """
@@ -82,31 +86,9 @@ def tokenize(text_structure, types='psw'):
     return text_structure
 
 
-def text_to_speech(text, engine='google'):
-
-    if engine == 'google' :
-        text = text.replace('(',' ')
-        text = text.replace(')',' ')
-        text = text.replace('`','')
-        text = text.replace("'",'')
-        text = text.replace("-",' ')
-
-        # call the speech.sh bash-script with text
-        cmd = conf.watson_path + conf.sep + 'speech.sh ' + '"' + text + '"'
-        FNULL = open(devnull, 'w') # used to suppress error messages from mplayer
-        call(cmd.split(), stderr=FNULL)
-
-    elif engine == 'espeak' :
-        cmd = 'espeak ' + '"' + text + '"'
-        call(cmd.split())
-
-    else :
-        print 'No such speech engine:', engine
-
-
 def _paragraph_tokenize(text_structure):
     if hasattr(text_structure, '__iter__') :
-        text_structure = [paragraph_tokenize(substructure) for substructure in text_structure]
+        text_structure = [paragraph_tokenize(substruc) for substruc in text_structure]
     else :
         # split into paragraphs
         text_structure = text_structure.split('\n')
@@ -119,7 +101,7 @@ def _paragraph_tokenize(text_structure):
 
 def _sent_tokenize(text_structure):
     if hasattr(text_structure, '__iter__') :
-        text_structure = [sent_tokenize(substructure) for substructure in text_structure]
+        text_structure = [sent_tokenize(substruc) for substruc in text_structure]
     else :
         text_structure = nltk.sent_tokenize(text_structure)
     return text_structure
@@ -127,7 +109,7 @@ def _sent_tokenize(text_structure):
 
 def _word_tokenize(text_structure):
     if hasattr(text_structure, '__iter__') :
-        text_structure = [word_tokenize(substructure) for substructure in text_structure]
+        text_structure = [word_tokenize(substruc) for substruc in text_structure]
     else :
         text_structure = nltk.word_tokenize(text_structure)
     return text_structure
@@ -136,9 +118,48 @@ def _word_tokenize(text_structure):
 def untokenize(tokens) :
     """ transforms an arbitrarily deep list of list of words
         into a string, so basically reverses the tokenization process """
-    if tokens and hasattr(tokens[0], '__iter__') :
+    if len(tokens)>0 and tokens and hasattr(tokens[0], '__iter__') :
         return [untokenize(t) for t in tokens]
     return "".join([" "+i if not i.startswith("'") and i not in punctuation else i for i in tokens]).strip()
+
+
+def text_to_speech(text, engine='google'):
+
+    if engine == 'google' :
+
+        # remove some unwanted characters
+        text = text.replace('(',' ')
+        text = text.replace(')',' ')
+        text = text.replace('`','')
+        text = text.replace("'",'')
+        text = text.replace('"','')
+        text = text.replace("-",' ')
+        text = text.replace(",",' ')
+
+        # the google speech synthesis accpets a maximal amount of characters
+        n = 90
+        
+        # the text is split into sentences
+        sents = tokenize(text, 's')
+
+        for sent in sents :
+
+            # split sentence into chunks of maximum n characters
+            # ToDo: consider word boundaries
+            chunks = [sent[i:i+n] for i in range(0, len(sent), n)]
+
+            # call the speech.sh bash-script with each chunk
+            for chunk in chunks :
+                cmd = conf.watson_path + conf.sep + 'speech.sh ' + '"' + chunk + '"'
+                FNULL = open(devnull, 'w') # used to suppress error messages from mplayer
+                call(cmd.split(), stderr=FNULL)
+
+    elif engine == 'espeak' :
+        cmd = 'espeak ' + '"' + text + '"'
+        call(cmd.split())
+
+    else :
+        print 'No such speech engine:', engine
 
 
 def canonicalize(words):

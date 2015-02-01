@@ -97,7 +97,7 @@ class Watson :
                 print
 
             # if there are no matches stop at this point
-            if not reduce(lambda x,y : x or y,all_matches) :
+            if not reduce(lambda x,y : x or y, all_matches) :
                 no_match = "Could not match any patterns."
                 print no_match
                 if self.speech : text_to_speech(no_match,voice)
@@ -108,7 +108,8 @@ class Watson :
             # this is still messy and might need an own class
             answers = self.matcher.semantics_all(all_matches)
 
-            # I have no idea what is does
+            # flattens the answers to a list of answers
+
             answers = list(chain(*answers))
 
             # if no answers have been found stop at this point
@@ -118,23 +119,12 @@ class Watson :
                 if self.speech : text_to_speech(sorry,voice)
                 return
 
-            # print and say answers
-            # complicated, ugly stuff to work around some issues with the speech output
-            print answers[0]
-            for c in answers[0].split(';') :
-                for c2 in c.split('.'):
-                    if self.speech : text_to_speech(c2,voice)
+            # reduce number of answers
+            answers = answers[:min(len(answers), self.max_answer_number)]
 
-            for i,a in enumerate(answers[1:]) :
-                if i+1 == self.max_answer_number :
-                    break
-                sleep(1)
-                if self.speech : text_to_speech('or',voice)
-                print a
-                sleep(1)
-                for c in a.split(';') :
-                    for c2 in c.split('.'):
-                        if self.speech : text_to_speech(c2,voice)
+            for answer in answers :
+                print answer
+                if self.speech : text_to_speech(answer, voice)
 
 
 class Console(cmd.Cmd):
