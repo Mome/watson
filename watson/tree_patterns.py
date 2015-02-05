@@ -6,7 +6,7 @@ from copy import copy
 from nltk.tree import Tree, ParentedTree
 
 from configurations import tree_patterns_path, pattern_semantic_separator
-#import find_answers # recursive import !!
+import find_answers 
 import recources as res
 
 
@@ -15,9 +15,16 @@ def load_pattern_list():
     with open(tree_patterns_path) as pattern_file:
         pattern_list = pattern_file.readlines()
 
-    #maybe just use for instead of list_comprehentions
-    pattern_list = [line.split(pattern_semantic_separator) for line in pattern_list]
+    # cut out comments
+    pattern_list = [line[:line.index('#')] if '#' in line else line for line in pattern_list]
 
+    # remove empty lines
+    pattern_list = [line.strip() for line in pattern_list if line.strip()!=''] 
+
+    # splits line into pattern and semantics
+    pattern_list = [line.split(pattern_semantic_separator) for line in pattern_list]
+    
+    # splits patterns and corresponding semantics into subparts
     pattern_list = [[pair[0].strip().split(),pair[1].strip().split()] for pair in pattern_list]
 
     patterns, semantic_tranlations = zip(*pattern_list)
@@ -34,8 +41,9 @@ class TreePatternMatcher :
 
         self.function_dict = {'dbpedia' : res.dbpedia_wrapper,
                         'wordnet' : res.get_wordnet_definition,
-                        'wiki' : res.get_first_wikipedia_sentences}
-                        # 'search' : find_answers.document_search_wrapper }
+                        'wiki' : res.get_first_wikipedia_sentences,
+                        'print': find_answers._print,
+                        'search' : find_answers.document_search_wrapper }
 
     def match_all(self, tree, whole_sentence):
         match_tree = TreePatternMatcher._transform_match_tree(tree)
@@ -104,7 +112,9 @@ class TreePatternMatcher :
 
 
     def match_to_semantics(self, pattern, match, semantic):
-
+        
+        print semantic
+        
         output = []
 
         match_labels = [m.label() for m in match]

@@ -6,7 +6,6 @@ import nltk
 
 import configurations as conf
 import recources
-from tree_patterns import TreePatternMatcher, load_pattern_list
 import language_processing as nlp
 
 def document_search_wrapper(topics, filter_words, ner_types) :
@@ -88,3 +87,8 @@ def select_best_answer(options):
                 best.append(key)
         output.append((opt[0],best))
     return output
+
+
+def _print(*args) :
+    """ transforms an arbitrary list of arguments into a string  """
+    return [string.join(args)]
