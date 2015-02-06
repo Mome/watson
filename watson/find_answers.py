@@ -1,14 +1,18 @@
-import pdb
 from collections import Counter
 import os
 import string
 
 import nltk
+from nltk.corpus import stopwords
 
 import configurations as conf
 import recources
 from tree_patterns import TreePatternMatcher, load_pattern_list
 import language_processing as nlp
+
+
+STOPWORDS = stopwords.words("english")
+
 
 def document_search_wrapper(topics, filter_words, ner_types) :
     answer_candidates = document_search(topics, filter_words, ner_types)
@@ -40,19 +44,24 @@ def document_search(topics, filter_words, ner_types):
     print 'translate abbreviations and slang ...'
     paragraphs = [nlp.canonicalize(p) for p in paragraphs]
 
-    print 'check each paragraph if it contains a keyword'
+    print 'check each paragraph if it contains _all_ keyword'
     good_paragraphs = []
     for p in paragraphs:
-        #pdb.set_trace() ############################## Breakpoint ##############################
-        for fw in filter_words :
-            if fw.lower() in [lp.lower() for lp in p] :
-                good_paragraphs += [p]
-                break
+        missing_keyword = False
+        lowercase_p = [lp.lower() for lp in p]
+
+        for fw in filter_words:
+            if fw.lower() not in lowercase_p:
+                missing_keyword = True
+
+        if not missing_keyword:
+            p = [word for word in p if word not in STOPWORDS]
+            good_paragraphs += [p]
 
     print 'len good_paragraphs', len(good_paragraphs)
     if len(good_paragraphs) == 0 :
         print 'no paragraphs found'
-        return
+        return []
 
     # flatten list of keyword list
     good_paragraphs = [item for sublist in good_paragraphs for item in sublist]
@@ -73,9 +82,9 @@ def document_search(topics, filter_words, ner_types):
         # clear:
         #if tag not in ner_types :
             #continue
-        if tag in solutions :
+        if tag in solutions:
             solutions[tag] += [word]
-        else :
+        else:
             solutions[tag] = [word]
 
     return solutions.items()

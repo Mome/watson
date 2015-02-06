@@ -2,14 +2,18 @@ import cmd
 from random import choice
 import sys
 from pattern.en import parsetree
+from nltk.corpus import stopwords
 
 import configurations as conf
 import draw_graph
 from language_processing import parse, text_to_speech, ner_tag
 from tree_patterns import load_pattern_list, TreePatternMatcher, MatchTree
-from find_answers import document_search_wrapper
+from find_answers import document_search_wrapper, document_search
 
-class Watson :
+
+STOPWORDS = stopwords.words("english")
+
+class Watson:
 
     def __init__(self):
 
@@ -64,7 +68,7 @@ class Watson :
         voice = self.voices[self.voice]
 
         print "parsing sentence ..."
-        sentences = parsetree(sent, relations=True, )
+        sentences = parsetree(sent, relations=True, lemmata=True)
 
         if len(sentences) > 1:
             print "Only processing one sentence at a time"
@@ -98,7 +102,8 @@ class Watson :
             obj_words = obj.words[1:]
         keywords = []
         for word in obj_words:
-            keywords.append(word.string)
+            if word not in STOPWORDS:
+                keywords.append(word.string)
 
         if not self.silent:
             print
