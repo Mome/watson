@@ -2,6 +2,7 @@ import cmd
 from itertools import chain
 import os
 from random import choice
+import readline
 import string
 import sys
 
@@ -30,8 +31,7 @@ class Watson :
         'good night',
         'bye bye',
         'it was nice meeting you.',
-        'see you soon.',
-        'thank you for using me.',
+        'see you soon.', 
         'au revoir']
 
     def toggle_speech(self) :
@@ -136,7 +136,18 @@ class Console(cmd.Cmd):
         self.watson = watson
         self.draw_parsetree_engine = 'nltk'
         self.display = True
+        self.load_history()
         watson.say_hello()
+
+    def load_history(self):
+        path = conf.cmd_hist_path
+        if os.path.exists(path) :
+            readline.read_history_file(path)
+
+    def save_history(self):
+        path = conf.cmd_hist_path
+        #import readline # ?? why ??
+        readline.write_history_file(path)
 
     def emptyline(self) :
         pass
@@ -199,6 +210,7 @@ class Console(cmd.Cmd):
 
     def do_quit(self, arg):
         self.watson.say_good_bye()
+        self.save_history()
         sys.exit(1)
 
     def help_quit(self):
