@@ -24,6 +24,15 @@ def get_corpus(keywords):
     return corpus
 
 
+def get_definition(word) :
+    definitions = []
+    definitions += get_wordnet_definition(word)
+    definitions += get_first_wikipedia_sentences(word,'en')
+    definitions += get_first_wikipedia_sentences(word,'simple')
+    return definitions
+    
+
+
 def get_wordnet_definition(word):
     synsets = wordnet.synsets(word)
     return [syn.definition() for syn in synsets]
@@ -44,7 +53,7 @@ def dbpedia_wrapper(topics, subject_object):
     #print 'results', results
     return ['The ' + subject_object + ' of ' + ', '.join(topics).replace('_',' ') + ' is ' + r for r in results]
 
-def get_first_wikipedia_sentences(word,sent_number=2):
+def get_first_wikipedia_sentences(word,lang='en',sent_number=2):
     wt = get_wikipedia_text(word)[0]
     wt = filter(lambda x: x in string.printable, wt)
     wt = tokenize(wt,'s')

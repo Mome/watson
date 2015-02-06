@@ -43,6 +43,7 @@ class TreePatternMatcher :
                         'wordnet' : res.get_wordnet_definition,
                         'wiki' : res.get_first_wikipedia_sentences,
                         'print': find_answers._print,
+                        'definition' : res.get_definition,
                         'search' : find_answers.document_search_wrapper }
 
     def match_all(self, tree, whole_sentence):
@@ -56,10 +57,16 @@ class TreePatternMatcher :
 
     # matching has the find first 
     def match_pattern(self, pattern, match_tree, whole_sentence=False):
-
+        
         pattern = self._transform_pattern(pattern)
-
-        isinstance(match_tree, (str,unicode,Tree))
+        pattern = copy(pattern)    
+     
+        # cut part after underscore
+        for i,p in enumerate(pattern) :
+            if '$' in p :
+                pattern[i] = p.split('$')[0]
+        
+        #isinstance(match_tree, (str,unicode,Tree))
 
         if whole_sentence :
             starters = match_tree.follower_dict[None]
@@ -113,23 +120,24 @@ class TreePatternMatcher :
 
     def match_to_semantics(self, pattern, match, semantic):
         
-        print semantic
-        
         output = []
 
-        match_labels = [m.label() for m in match]
+        #match_labels = [m.label() for m in match]
         match_terminals = [" ".join(MatchTree.get_terminals(m)) for m in match]
         sem_func, sem_args = zip(*[s.split(':') for s in semantic])
         sem_args = [a.split(',') for a in sem_args]
         
         #print 'sem_func', sem_func
         #print 'sem_args', sem_args
-
+        #print 'match_labels', match_labels
+        #print 'match_terminals', match_terminals
+        #print 'pattern', pattern        
+ 
         for func,args in zip(sem_func,sem_args) :
             arg_terminals = []
             for a in args :
-                if a in match_labels :
-                    arg = match_terminals[match_labels.index(a)]
+                if a in pattern :
+                    arg = match_terminals[pattern.index(a)]
                 else :
                     arg = a
                 arg_terminals.append(arg)
@@ -156,7 +164,7 @@ class TreePatternMatcher :
     @classmethod
     def _transform_match_tree(cls, tree):
         """ converts a Tree (string or nltk string) into a MatchTree """
-
+        
         if isinstance(tree, (str,unicode,Tree)) :
             match_tree = MatchTree(tree)
         elif not isinstance(tree, MatchTree) :

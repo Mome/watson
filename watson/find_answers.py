@@ -10,7 +10,10 @@ import language_processing as nlp
 
 def document_search_wrapper(topics, filter_words, ner_types) :
     answer_candidates = document_search(topics, filter_words, ner_types)
-    return select_best_answer(answer_candidates)
+    best_answers = select_best_answer(answer_candidates)
+    # assuming only one ner type and remove it from answer
+    best_answers = best_answers[0][1]
+    return best_answers
 
 
 def document_search(topics, filter_words, ner_types):

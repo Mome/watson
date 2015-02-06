@@ -1,16 +1,15 @@
-what is DT NN -> wiki:NN
-what is NN -> wiki:NN
-what is DT NN -> wordnet:NN
-what is NN -> wordnet:NN
+who is DT NN$1 of NN$2 -> search:NN$2,NN$1,PERSON
+who was DT NN$1 of NN$2 -> search:NN$2,NN$1,PERSON
+
+what is NN -> wiki:NN wordnet:NN
+what is DT NN -> definition:NN
 what is DT NNS -> wordnet:NNS
 what is NNS -> wordnet:NNS
 what are NNS -> wordnet:NNS
 what are DT NNS -> wordnet:NNS
 what are NNP -> wordnet:NNP
-who is DT NN -> wordnet:NN
-who is DT NN -> wordnet:NN
-who is NN -> wordnet:NN
-who is NNP -> wordnet:NNP
-who is NNP -> wiki:NNP
+who is DT NN -> wordnet:NN wiki:NN
+who is NN -> wordnet:NN    # demonstrating comments
+who is NNP -> wordnet:NNP wiki:NNP
 what is JJ -> wordnet:JJ
 what is the birthday of NN -> dbpedia:NN,birthDate
