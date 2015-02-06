@@ -135,6 +135,7 @@ class Console(cmd.Cmd):
         self.prompt = '~> '
         self.watson = watson
         self.draw_parsetree_engine = 'nltk'
+        self.display = True
         watson.say_hello()
 
     def emptyline(self) :
@@ -155,8 +156,13 @@ class Console(cmd.Cmd):
        
         for i,tree in enumerate(trees) :
             print tree
-            if self.draw_parsetree_engine :
+            if self.display :
                 draw_graph.draw_parsetree(tree, self.draw_parsetree_engine, i)
+
+    def do_display(self, line):
+        """ turns on/off all features that require a GUI """
+        self.display = not self.display
+        print 'display toggled', 'on' if self.display else 'off'
 
     def do_speech(self, line):
         self.watson.toggle_speech()
