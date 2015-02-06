@@ -1,14 +1,13 @@
 import cmd
-from itertools import chain
-import os
 from random import choice
-import string
 import sys
+from pattern.en import parsetree
 
 import configurations as conf
 import draw_graph
 from language_processing import parse, text_to_speech, ner_tag
 from tree_patterns import load_pattern_list, TreePatternMatcher, MatchTree
+from find_answers import document_search_wrapper
 
 class Watson :
 
@@ -65,66 +64,114 @@ class Watson :
         voice = self.voices[self.voice]
 
         print "parsing sentence ..."
+        sentences = parsetree(sent, relations=True, )
+
+        if len(sentences) > 1:
+            print "Only processing one sentence at a time"
+            return
+
+        sentence = sentences[0]
+        if not self.silent:
+            print
+            print "Subject: ", sentence.relations["SBJ"]
+            print "Object: ", sentence.relations["OBJ"]
+            print "(Verb: ", sentence.relations["VP"], ")"
+            print "Prepositional NP: ", sentence.pnp
+
+        if sentence.relations["SBJ"]:
+            print("Subject of sentence is not a question word but",
+                  sentence.relations["SBJ"][1].string)
+            return
+
+        # We boldly assume only one object and only on PNP in our easy question
+
+        pnp = sentence.pnp[0]
+        #get rid of prepositions and articles (first word is preposition)
+        topic = ""
+        for word in pnp.words[1:]:
+            if "NP" in word.type:
+                topic += (word.string + " ")
+
+        obj = sentence.relations["OBJ"][1]
+        obj_words = obj.words
+        if obj_words[0].type == "DT":
+            obj_words = obj.words[1:]
+        keywords = []
+        for word in obj_words:
+            keywords.append(word.string)
+
+        if not self.silent:
+            print
+            print "topic: ", topic
+            print "keyword: ", keywords
+
+        answers = document_search_wrapper(topic, keywords, [])
+
+        for answer in answers:
+            print answer
+            if self.speech:
+                text_to_speech(answer, voice)
+
         # use stanford parser to create parsetrees (multiple parsetrees for multiple sentences)
         # TODO: parse only handles single sentences. Split into sentences.
-        trees = parse(sent)
+        #trees = parse(sent)
 
-        pattern_list, semantic_translations = load_pattern_list()
+        #pattern_list, semantic_translations = load_pattern_list()
 
-        for i,tree in enumerate(trees) :
-            tree = tree[0] # cut root node
+        #for i,tree in enumerate(trees) :
+            #tree = tree[0] # cut root node
 
-            # print text representation of parsetree
-            if not self.silent :
-                print
-                print '====================================================='
-                print 'Parse Tree:', tree
+            ## print text representation of parsetree
+            #if not self.silent :
+                #print
+                #print '====================================================='
+                #print 'Parse Tree:', tree
 
-            if self.silent: print 'matching patterns ...'
-            # try to match patterns of file pattern_list in parsetree of sentence
-            all_matches = self.matcher.match_all(tree, self.whole_sentence)
+            #if self.silent: print 'matching patterns ...'
+            ## try to match patterns of file pattern_list in parsetree of sentence
+            #all_matches = self.matcher.match_all(tree, self.whole_sentence)
             
-            # print matches of parsetree
-            if not self.silent :
-                print
-                for i,matches in enumerate(all_matches) :
-                    if matches == [] :
-                        print 'No matches for', pattern_list[i], '!!'
-                    for match in matches :
-                        print 'Match for',[str(node.label()) for node in match],'->',\
-                         [str(' '.join(MatchTree.get_terminals(node))) for node in match]
-                print '====================================================='
-                print
+            ## print matches of parsetree
+            #if not self.silent :
+                #print
+                #for i,matches in enumerate(all_matches) :
+                    #if matches == [] :
+                        #print 'No matches for', pattern_list[i], '!!'
+                    #for match in matches :
+                        #print 'Match for',[str(node.label()) for node in match],'->',\
+                         #[str(' '.join(MatchTree.get_terminals(node))) for node in match]
+                #print '====================================================='
+                #print
 
-            # if there are no matches stop at this point
-            if not reduce(lambda x,y : x or y, all_matches) :
-                no_match = "Could not match any patterns."
-                print no_match
-                if self.speech : text_to_speech(no_match,voice)
-                return
+            ## if there are no matches stop at this point
+            #if not reduce(lambda x,y : x or y, all_matches) :
+                #no_match = "Could not match any patterns."
+                #print no_match
+                #if self.speech : text_to_speech(no_match,voice)
+                #return
 
-            # assigns a function call to each match
-            # i.e.: looks for answers to the question
-            # this is still messy and might need an own class
-            answers = self.matcher.semantics_all(all_matches)
+            ## assigns a function call to each match
+            ## i.e.: looks for answers to the question
+            ## this is still messy and might need an own class
+            #answers = self.matcher.semantics_all(all_matches)
 
-            # flattens the answers to a list of answers
+            ## flattens the answers to a list of answers
 
-            answers = list(chain(*answers))
+            #answers = list(chain(*answers))
 
-            # if no answers have been found stop at this point
-            if len(answers) == 0:
-                sorry = "Sorry but I can't find any answers!"
-                print sorry
-                if self.speech : text_to_speech(sorry,voice)
-                return
+            ## if no answers have been found stop at this point
+            #if len(answers) == 0:
+                #sorry = "Sorry but I can't find any answers!"
+                #print sorry
+                #if self.speech : text_to_speech(sorry,voice)
+                #return
 
-            # reduce number of answers
-            answers = answers[:min(len(answers), self.max_answer_number)]
+            ## reduce number of answers
+            #answers = answers[:min(len(answers), self.max_answer_number)]
 
-            for answer in answers :
-                print answer
-                if self.speech : text_to_speech(answer, voice)
+            #for answer in answers :
+                #print answer
+                #if self.speech : text_to_speech(answer, voice)
 
 
 class Console(cmd.Cmd):

@@ -1,3 +1,4 @@
+import pdb
 from collections import Counter
 import os
 import string
@@ -41,7 +42,8 @@ def document_search(topics, filter_words, ner_types):
 
     print 'check each paragraph if it contains a keyword'
     good_paragraphs = []
-    for p in paragraphs :
+    for p in paragraphs:
+        #pdb.set_trace() ############################## Breakpoint ##############################
         for fw in filter_words :
             if fw.lower() in [lp.lower() for lp in p] :
                 good_paragraphs += [p]
@@ -67,8 +69,10 @@ def document_search(topics, filter_words, ner_types):
 
     solutions = {}
     for word, tag in tagged_text:
-        if tag not in ner_types :
-            continue
+        # TODO: Switch on semantic type filtering once the type is
+        # clear:
+        #if tag not in ner_types :
+            #continue
         if tag in solutions :
             solutions[tag] += [word]
         else :
