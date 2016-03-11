@@ -9,7 +9,18 @@ import recources
 import language_processing as nlp
 
 def document_search_wrapper(topics, filter_words, ner_types) :
+
+    # highly questionable
+    if ner_types == '*' :
+        ner_types == ['LOCATION','ORGANIZATION']
+        #ner_types == ['TIME','LOCATION','ORGANIZATION','PERSON','MONEY','PERCENT','DATE']
+ 
     answer_candidates = document_search(topics, filter_words, ner_types)
+    
+    # remove topic from answer list
+    for ac in answer_candidates :
+        print ac
+
     best_answers = select_best_answer(answer_candidates)
     # assuming only one ner type and remove it from answer
     best_answers = best_answers[0][1]
@@ -17,6 +28,10 @@ def document_search_wrapper(topics, filter_words, ner_types) :
 
 
 def document_search(topics, filter_words, ner_types):
+
+    print 'topics', topics
+    print 'filter_words', filter_words
+    print 'ner_types', ner_types 
 
     if filter_words in [str,unicode] :
         filter_words = [filter_words]

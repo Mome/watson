@@ -1,3 +1,4 @@
+#! /usr/bin/python
 import cmd
 from itertools import chain
 import os

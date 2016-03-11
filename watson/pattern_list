@@ -1,6 +1,9 @@
 who is DT NN$1 of NN$2 -> search:NN$2,NN$1,PERSON
 who was DT NN$1 of NN$2 -> search:NN$2,NN$1,PERSON
 
+what is the capital of NN -> search:NN,capital,LOCATION
+#what is the NN$1 of NN$2 -> search:NN$2,NN$1,*
+
 what is NN -> wiki:NN wordnet:NN
 what is DT NN -> definition:NN
 what is DT NNS -> wordnet:NNS
