@@ -1,4 +1,4 @@
-nltk>=3.0.0
+nltk==3.0.0
 html2text>=2014.12.5
 rdflib>=4.1.2
 wikipedia>=1.2.1

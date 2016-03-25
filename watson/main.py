@@ -157,6 +157,7 @@ class Console(cmd.Cmd):
         self.watson.answer_question(line)
 
     def do_ner(self, sent):
+        """prints named entity relation tags for a sentence"""
         tagged_sent = ner_tag(sent)
         print
         for ts in tagged_sent :
@@ -164,9 +165,11 @@ class Console(cmd.Cmd):
         print
 
     def do_parse(self,sent):
+        """print parstree of a sentence"""
         trees = parse(sent)
        
         for i,tree in enumerate(trees) :
+            tree = tree[0] # cut root node
             print tree
             if self.display :
                 draw_graph.draw_parsetree(tree, self.draw_parsetree_engine, i)
@@ -181,6 +184,7 @@ class Console(cmd.Cmd):
         print 'speech toggled', 'on' if self.watson.speech else 'off'
 
     def do_silent(self, line):
+        """toggles detailed output on/off"""
         self.watson.toggle_silent()
         print 'silent toggled', 'on' if self.watson.silent else 'off'
 
@@ -189,8 +193,16 @@ class Console(cmd.Cmd):
         print 'voice switched to', self.watson.voices[self.watson.voice]
 
     def do_whole(self, line):
+        """if toggled on: the pattern matching must fit the whole sentence"""
         self.watson.toggle_whole_sentence()
         print 'whole_sentence pattern matching toggled', 'on' if self.watson.whole_sentence else 'off'
+
+    def do_draw(self, line):
+        """switches parsetree draw engine"""
+        engine = self.draw_parsetree_engine
+        engine = 'graphviz' if engine=='nltk' else 'nltk'
+        print 'parsetree draw engine switched to', engine
+        self.draw_parsetree_engine = engine
 
     def do_max(self,num):
         print num
@@ -204,10 +216,6 @@ class Console(cmd.Cmd):
     def help_max(self):
         print "syntax: max $NUMBER",
         print "-- sets the number of maximal answers to $NUMBER"
-
-    def help_hello(self):
-        print "syntax: hello [message]",
-        print "-- prints a hello message"
 
     def do_quit(self, arg):
         self.watson.say_good_bye()

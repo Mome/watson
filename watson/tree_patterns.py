@@ -39,12 +39,14 @@ class TreePatternMatcher :
         self.pattern_list = pattern_list
         self.semantic_tranlations = semantic_tranlations
 
-        self.function_dict = {'dbpedia' : res.dbpedia_wrapper,
-                        'wordnet' : res.get_wordnet_definition,
-                        'wiki' : res.get_first_wikipedia_sentences,
-                        'print': find_answers._print,
-                        'definition' : res.get_definition,
-                        'search' : find_answers.document_search_wrapper }
+        self.function_dict = {
+            'dbpedia' : res.dbpedia_wrapper,
+            'wordnet' : res.get_wordnet_definition,
+            'wiki' : res.get_first_wikipedia_sentences,
+            'print': find_answers._print,
+            'definition' : res.get_definition,
+            'search' : find_answers.document_search_wrapper,
+        }
 
     def match_all(self, tree, whole_sentence):
         match_tree = TreePatternMatcher._transform_match_tree(tree)
@@ -172,7 +174,10 @@ class TreePatternMatcher :
                 ' not convertable to MatchTree !')
 
         return match_tree
-    
+
+class MatchLeaf :
+    def __init__(self, string, constituent, lemma, named_entity):
+        pass
 
 class MatchTree :
 

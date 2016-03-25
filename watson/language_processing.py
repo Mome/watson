@@ -21,7 +21,8 @@ def parse(text, normalize=True) : #ToDo: change behavior
     if hasattr(text, '__iter__') :
         return [parse(t) for t in text]
     else :
-        if normalize : text = canonicalize(text)
+        if normalize:
+            text = canonicalize(text)
         trees = stanford_parser.raw_parse(text)
     return trees
 
