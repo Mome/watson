@@ -133,7 +133,7 @@ class Console(cmd.Cmd):
     def __init__(self, watson):
         cmd.Cmd.__init__(self)
         self.intro = "WATSON-CONSOLE\nAsk me any question:"
-        self.prompt = '~> '
+        self.prompt = (unichr(0x25B6) + u' ').encode('utf-8')
         self.watson = watson
         self.draw_parsetree_engine = 'nltk'
         self.display = True

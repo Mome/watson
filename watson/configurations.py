@@ -26,7 +26,7 @@ stanford_postagger = stanford_pos_path + sep +'stanford-postagger.jar'
 cmd_hist_path = watson_path + sep + '.console_history'
 tree_patterns_path =  watson_path + sep + 'pattern_list'
 pattern_semantic_separator = '->'
-image_viewer = 'gnome-open'
+image_viewer = 'gpicview'
 
 
 del abspath, dirname

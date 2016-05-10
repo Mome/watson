@@ -175,9 +175,6 @@ class TreePatternMatcher :
 
         return match_tree
 
-class MatchLeaf :
-    def __init__(self, string, constituent, lemma, named_entity):
-        pass
 
 class MatchTree :
 
