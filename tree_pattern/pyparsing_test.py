@@ -14,9 +14,15 @@ constituents = 'S SBAR SBARQ SINV SQ ADJP ADVP CONJP FRAG INTJ LST NAC NP NX PP 
 constraint = Group(Word(alphanums).setResultsName('key') + Suppress('=') + Word(alphanums).setResultsName('value')).setResultsName('constraint')
 constraint_list = Suppress('[') + constraint + ZeroOrMore(Suppress(',') + constraint)  + Suppress(']')
 p_token = Group(Word(alphas).setResultsName('alpha') + Optional(Word(nums)).setResultsName('num') + Optional(constraint_list)).setResultsName('token')
-
 pattern = Group(ZeroOrMore(p_token)).setResultsName('pattern')
-rule = Group(p_token.setResultsName('head') + Suppress('::') + pattern).setResultsName('rule')
+
+
+arg = Word(alphanums).setResultsName('arg')
+arguments = Group(arg + ZeroOrMore(Suppress(',') + arg)).setResultsName('arglist')
+predicate = Word(alphanums).setResultsName('name') + Suppress('(') + Optional(arguments) + Suppress(')')
+predicate_list = Group(Optional(predicate + ZeroOrMore(',' + predicate))).setResultsName('predicate_list')
+
+rule = Group(p_token.setResultsName('head') + Suppress('::') + pattern + Optional(Suppress('::') + predicate_list)).setResultsName('rule')
 #rule = rule.setResultsName('code')
 rule.ignore( pythonStyleComment )
 
@@ -32,10 +38,10 @@ rule.ignore( pythonStyleComment )
 #result = code.parseString(code_string)
 
 string = """
-NP :: VP1[a=r, bla=gna] X[r=w]
-S :: SS SA HH
+S :: SS SA HH :: a(p1, p2)
 """
 
+#NP :: VP1[a=r, bla=gna] X[r=w]
 rules = []
 trees = []
 for line in string.splitlines():
