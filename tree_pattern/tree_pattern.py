@@ -6,6 +6,7 @@ from nltk.parse import stanford
 import logging
 from copy import copy
 from pprint import pformat, pprint
+from pyparsing import *
 #logging.basicConfig(level=logging.INFO)
 
 
@@ -14,14 +15,101 @@ os.environ['STANFORD_MODELS'] = stanford_path
 os.environ['STANFORD_PARSER'] = stanford_path
 stanford_parser = stanford.StanfordParser() 
 
+constitunt_makros = {
+    'V' : 'VB VBD VBG VBN VBP VBZ'.split(),
+    'N' : 'NN NNS NNP NNPS'.split(),
+    'W' : 'WHADJP WHAVP WHNP WHPP'.split(),
+}
 
-Rule = namedtuple('Rule',['head','pattern'])
-PatternToken = namedtuple('PatternToken',['varname','constraints'])
+constituent_list = """S SBAR SBARQ SINV SQ ADJP ADVP CONJP FRAG INTJ LST NAC NP
+NX PP PRN PRT QP RRC UCP VP WHADJP WHAVP WHNP WHPP X CC CD DT EX FW IN JJ JJR
+JJS LS MD NN NNS NNP NNPS PDT POS PRP PRP$ RB RBR RBS RP SYM TO UH VB VBD VBG
+VBN VBP VBZ WDT WP WP$ WRB""".split()
+
+
+
 Match = namedtuple('Match', ['varnames', 'nodes'])
 
-constituent_list = ['NP', 'VP', 'DT','NNS','.']
+class RuleParser:
 
-def parse_rule(rule_str):
+    PatternToken = namedtuple('PatternToken',['varname','constraints'])
+    Predicate = namedtuple('Predicate', ['name','args'])
+    Rule = namedtuple('Rule', ['head', 'pattern', 'predicates'])
+
+    def __init__(self):
+        singel_constraint_value = Word(alphanums).setResultsName('value')
+
+        constraint_value = Group(
+            singel_constraint_value |
+            Suppress('{')
+                + singel_constraint_value
+                + ZeroOrMore(Suppress(',') + singel_constraint_value)
+                + Suppress('}')
+        ).setResultsName('value_set')
+
+        constraint = Group(
+            Word(alphanums).setResultsName('key')
+            + Suppress('=')
+            + constraint_value
+        ).setResultsName('constraint')
+
+        constraint_list = Group(
+            Suppress('[')
+            + constraint
+            + ZeroOrMore(Suppress(',') + constraint)
+            + Suppress(']')
+        ).setResultsName('constraints_list')
+
+        p_token = Group(
+            Word(alphas).setResultsName('alpha')
+            + Optional(Word(nums)).setResultsName('num')
+            + Optional(constraint_list)
+        ).setResultsName('token')
+
+        pattern = Group(ZeroOrMore(p_token)).setResultsName('pattern')
+
+        arg = Word(alphanums).setResultsName('arg')
+        arguments = Group(arg + ZeroOrMore(Suppress(',') + arg)).setResultsName('arglist')
+        predicate = Word(alphanums).setResultsName('name') + Suppress('(') + Optional(arguments) + Suppress(')')
+        predicate_list = Group(Optional(predicate + ZeroOrMore(',' + predicate))).setResultsName('predicate_list')
+
+        rule = Group(p_token.setResultsName('head') + Suppress('::') + pattern + Optional(Suppress('::') + predicate_list)).setResultsName('rule')
+        #rule = rule.setResultsName('code')
+        rule.ignore( pythonStyleComment )
+
+        self._parser = rule
+
+    def parse_rules(self, rules_str):
+        parser = self._parser
+
+        rules = []
+        for line in rules_str.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parsetree = parser.parseString(line).rule
+            head = self.__class__._construct_ptoken(parsetree.head)
+            pattern = [self.__class__._construct_ptoken(pt) for pt in parsetree.pattern]
+            rules.append(self.__class__.Rule(head, pattern, None))
+        return rules
+
+    @classmethod
+    def _construct_ptoken(cls, ptoken):
+        constraint_dict = {}
+        if ptoken.alpha in constituent_list:
+            constraint_dict['label'] = {ptoken.alpha}
+        for key, value_set in ptoken.constraints_list:
+            value_set = set(value_set)
+            if key in constraint_dict:
+                constraint_dict[key].update(value_set)
+            else:
+               constraint_dict[key] = value_set
+        return cls.PatternToken(ptoken.alpha + ptoken.num, constraint_dict)
+
+
+
+
+def parse_rule2(rule_str):
     head, pattern_str = [r.strip() for r in rule_str.split('::')]
 
     pattern = []
@@ -307,7 +395,7 @@ class PropertyTree(IteratorTree):
 
         # add IteratorTree as properties
         for prop in IteratorTree.__dict__:
-
+            ... # ???
 
 
     @classmethod

@@ -10,12 +10,35 @@ constitunt_makros = {
 
 constituents = 'S SBAR SBARQ SINV SQ ADJP ADVP CONJP FRAG INTJ LST NAC NP NX PP PRN PRT QP RRC UCP VP WHADJP WHAVP WHNP WHPP X CC CD DT EX FW IN JJ JJR JJS LS MD NN NNS NNP NNPS PDT POS PRP PRP$ RB RBR RBS RP SYM TO UH VB VBD VBG VBN VBP VBZ WDT WP WP$ WRB'
 
+singel_constraint_value = Word(alphanums).setResultsName('value')
+constraint_value = Group(
+                    singel_constraint_value |
+                    Suppress('{')
+                        + singel_constraint_value
+                        + ZeroOrMore(Suppress(',') + singel_constraint_value)
+                        + Suppress('}')
+                ).setResultsName('value_set')
 
-constraint = Group(Word(alphanums).setResultsName('key') + Suppress('=') + Word(alphanums).setResultsName('value')).setResultsName('constraint')
-constraint_list = Suppress('[') + constraint + ZeroOrMore(Suppress(',') + constraint)  + Suppress(']')
-p_token = Group(Word(alphas).setResultsName('alpha') + Optional(Word(nums)).setResultsName('num') + Optional(constraint_list)).setResultsName('token')
+constraint = Group(
+                Word(alphanums).setResultsName('key')
+                + Suppress('=')
+                + constraint_value
+            ).setResultsName('constraint')
+
+constraint_list = Group(
+                    Suppress('[')
+                    + constraint
+                    + ZeroOrMore(Suppress(',') + constraint)
+                    + Suppress(']')
+                ).setResultsName('constraints_list')
+
+p_token = Group(
+            Word(alphas).setResultsName('alpha')
+            + Optional(Word(nums)).setResultsName('num')
+            + Optional(constraint_list)
+        ).setResultsName('token')
+
 pattern = Group(ZeroOrMore(p_token)).setResultsName('pattern')
-
 
 arg = Word(alphanums).setResultsName('arg')
 arguments = Group(arg + ZeroOrMore(Suppress(',') + arg)).setResultsName('arglist')
@@ -38,7 +61,7 @@ rule.ignore( pythonStyleComment )
 #result = code.parseString(code_string)
 
 string = """
-S :: SS SA HH :: a(p1, p2)
+S :: SS1[a=b, c={2,34}] SA HH2 :: a(p1, p2)
 """
 
 #NP :: VP1[a=r, bla=gna] X[r=w]
@@ -53,6 +76,6 @@ for line in string.splitlines():
     tree = ET.fromstring(xml_code)
     rules.append(result.rule)
     trees.append(tree)
-
+    print(result.rule.asXML())
 
 

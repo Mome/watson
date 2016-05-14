@@ -93,6 +93,30 @@ class TestIteratroTree(unittest.TestCase):
         self.assertEqual(a,b)
 
 
+class TestRuleParser(unittest.TestCase):
+
+    def setUp(self):
+        self.parser = RuleParser()
+
+    def _test_simple(self):
+        rules_str = """
+        S :: NP VP
+        """
+        rule = self.parser.parse_rules(rules_str)[0]
+        self.assertEqual(rule.head, RuleParser.PatternToken('S', {'label':{'S'}}))
+        self.assertEqual(rule.pattern[0], RuleParser.PatternToken('NP', {'label':{'NP'}}))
+        self.assertEqual(rule.pattern[1], RuleParser.PatternToken('VP', {'label':{'VP'}}))
+
+    def test_complex(self):
+        rules_str = """
+        S[type=animal] :: NP[a={c,x}, b=0] VP
+        """
+        rule = self.parser.parse_rules(rules_str)[0]
+        self.assertEqual(rule.head, RuleParser.PatternToken('S', {'label':{'S'},'type':{'animal'}}))
+        self.assertEqual(rule.pattern[0], RuleParser.PatternToken('NP', {'label':{'NP'},'a':{'c','x'},'b':{'0'}}))
+        self.assertEqual(rule.pattern[1], RuleParser.PatternToken('VP', {'label':{'VP'}}))
+
+
 class TestPatternMatcher(unittest.TestCase):
     ...
 
