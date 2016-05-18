@@ -22,73 +22,73 @@ class TestIteratroTree(unittest.TestCase):
         for l in letters: self.__dict__[l].label=l
 
     def test_ancestors(self):
-        a = frozenset(self.J.ancestor)
+        a = frozenset(self.J.ancestor())
         b = frozenset([self.E, self.B, self.A])
         self.assertEqual(a,b)
 
     def test_ancestors_or_self(self):
-        a = frozenset(self.J.ancestor_or_self)
+        a = frozenset(self.J.ancestor_or_self())
         b = frozenset([self.J, self.E, self.B, self.A])
         self.assertEqual(a,b)
 
     def test_decendant(self):
-        a = frozenset(self.J.descendant)
+        a = frozenset(self.J.descendant())
         #print([x.label for x in a])
         b = frozenset([self.O,self.P,self.Q,self.R,
             self.S,self.T,self.U,self.V,self.W])
         self.assertEqual(a,b)
 
     def test_decendant_or_self(self):
-        a = frozenset(self.J.descendant_or_self)
+        a = frozenset(self.J.descendant_or_self())
         b = frozenset([self.J,self.O,self.P,self.Q,self.R,
             self.S,self.T,self.U,self.V,self.W])
         self.assertEqual(a,b)
 
     def test_sibling(self):
-        a = frozenset(self.J.sibling)
+        a = frozenset(self.J.sibling())
         b = frozenset([self.H,self.I,self.K,self.L])
         self.assertEqual(a,b)
 
     def test_sibling_or_self(self):
-        a = frozenset(self.J.sibling_or_self)
+        a = frozenset(self.J.sibling_or_self())
         b = frozenset([self.H,self.I,self.J,self.K,self.L])
         self.assertEqual(a,b)
 
     def test_following(self):
-        a = frozenset(self.J.following)
+        a = frozenset(self.J.following())
         b = frozenset([self.F, self.G, self.K, self.L, self.N])
         self.assertEqual(a,b)
 
     def test_following_sibling(self):
-        a = frozenset(self.J.following_sibling)
+        a = frozenset(self.J.following_sibling())
         b = frozenset([self.K, self.L])
         self.assertEqual(a,b)
 
     def test_preceding(self):
-        a = frozenset(self.J.preceding)
+        a = frozenset(self.J.preceding())
         b = frozenset([self.C, self.D, self.H, self.I, self.M])
         self.assertEqual(a,b)
 
     def test_preceding_sibling(self):
-        a = frozenset(self.J.preceding_sibling)
+        a = frozenset(self.J.preceding_sibling())
         b = frozenset([self.H, self.I])
         self.assertEqual(a,b)
 
     def test_imidiate_following(self):
-        a = frozenset(self.O.imidiate_following)
+        a = frozenset( self.O.imidiate_following() )
         b = frozenset([self.P, self.T])
         self.assertEqual(a,b)
 
-        a = frozenset(self.J.imidiate_following)
+        a = frozenset(self.J.imidiate_following())
         b = frozenset([self.K])
         self.assertEqual(a,b)
 
-        a = frozenset(self.W.imidiate_following)
+        a = frozenset(self.W.imidiate_following())
         b = frozenset([self.K])
         self.assertEqual(a,b)
 
     def test_no_preceding(self):
-        a = frozenset(self.E.no_preceding)
+        a = frozenset(self.E.no_preceding())
         b = frozenset([self.E, self.H, self.M])
         self.assertEqual(a,b)
 
@@ -117,7 +117,7 @@ class TestRuleParser(unittest.TestCase):
         self.assertEqual(rule.pattern[1], RuleParser.PatternToken('VP', {'label':{'VP'}}))
 
 
-class TestPatternMatcher(unittest.TestCase):
+class TestPropertyTree(unittest.TestCase):
     ...
 
 

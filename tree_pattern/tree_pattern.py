@@ -1,10 +1,9 @@
-from itertools import chain, islice, tee
+from itertools import chain, islice, tee, takewhile, dropwhile
 import nltk
 from collections import namedtuple
 import os
 from nltk.parse import stanford
 import logging
-from copy import copy
 from pprint import pformat, pprint
 from pyparsing import *
 #logging.basicConfig(level=logging.INFO)
@@ -27,16 +26,14 @@ JJS LS MD NN NNS NNP NNPS PDT POS PRP PRP$ RB RBR RBS RP SYM TO UH VB VBD VBG
 VBN VBP VBZ WDT WP WP$ WRB""".split()
 
 
-
-Match = namedtuple('Match', ['varnames', 'nodes'])
-
 class RuleParser:
 
     PatternToken = namedtuple('PatternToken',['varname','constraints'])
-    Predicate = namedtuple('Predicate', ['name','args'])
     Rule = namedtuple('Rule', ['head', 'pattern', 'predicates'])
 
+
     def __init__(self):
+        nonums = alphas + '.!?$'
         singel_constraint_value = Word(alphanums).setResultsName('value')
 
         constraint_value = Group(
@@ -61,7 +58,7 @@ class RuleParser:
         ).setResultsName('constraints_list')
 
         p_token = Group(
-            Word(alphas).setResultsName('alpha')
+            Word(nonums).setResultsName('alpha')
             + Optional(Word(nums)).setResultsName('num')
             + Optional(constraint_list)
         ).setResultsName('token')
@@ -79,6 +76,7 @@ class RuleParser:
 
         self._parser = rule
 
+
     def parse_rules(self, rules_str):
         parser = self._parser
 
@@ -90,14 +88,19 @@ class RuleParser:
             parsetree = parser.parseString(line).rule
             head = self.__class__._construct_ptoken(parsetree.head)
             pattern = [self.__class__._construct_ptoken(pt) for pt in parsetree.pattern]
+            predicates = [self.__class__._construct_predicate(pre) for pre in parsetree.predicate_list]
             rules.append(self.__class__.Rule(head, pattern, None))
         return rules
+
 
     @classmethod
     def _construct_ptoken(cls, ptoken):
         constraint_dict = {}
         if ptoken.alpha in constituent_list:
             constraint_dict['label'] = {ptoken.alpha}
+        elif not ptoken.alpha.isupper():
+            constraint_dict['terminal'] = {ptoken.alpha}
+
         for key, value_set in ptoken.constraints_list:
             value_set = set(value_set)
             if key in constraint_dict:
@@ -106,50 +109,32 @@ class RuleParser:
                constraint_dict[key] = value_set
         return cls.PatternToken(ptoken.alpha + ptoken.num, constraint_dict)
 
+    @classmethod
+    def _construct_predicate(cls, predicate):
+        print('pred',type(predicate), predicate)
+        #print('pname', predicate.name)
+        #print('plist', predicate.arglist)
 
 
-
-def parse_rule2(rule_str):
-    head, pattern_str = [r.strip() for r in rule_str.split('::')]
-
-    pattern = []
-    for pattern_token in pattern_str.split():
-
-        if not pattern_token:
-            continue
-
-        if ':' in pattern_token:
-            varname, constraints = pattern_token.split(':')
-            constraints = dict(const.split('=') for const in constraints.split(','))
-        else:
-            varname = pattern_token
-            constraints = {}
-
-        if '_' in varname:
-            label, _ = varname.split('_')
-        else:
-            label = varname
-
-        if label in constituent_list:
-            constraints['label'] = label
-        else:
-            constraints['terminal'] = label
-
-        pattern.append(PatternToken(varname, constraints))
-
-    return Rule(head, pattern)
 
 
 def add_properties(prop_tree):
-    for node in prop_tree.descendant_or_self:
+    for node in prop_tree.descendant_or_self():
         node.properties['terminal'] = node.terminals
 
+
 class PatternMatcher:
-    def __init__(self, rules):
+
+    Match = namedtuple('Match', ['sent', 'rule','head_match','pattern_match'])
+
+    def __init__(self, rules, whole=True, head_only_ones=True):
         self.rules = rules
+        self.whole = whole
+        self.head_only_ones = head_only_ones
 
 
     def match(self, sents):
+        """Constructs PropertyTrees from text and passes to match_rules"""
 
         if isinstance(sents, str):
             sents = [
@@ -157,118 +142,102 @@ class PatternMatcher:
                 for s in nltk.sent_tokenize(sents)
             ]
 
-        print(sents)
-
         logging.info('Construnct parsetree for all sentences!')
         parse_trees = stanford_parser.parse_sents(sents)
-        matches_for_sentences = []
-        for pt in parse_trees:
+
+        for pt, sent in zip(parse_trees, sents):
+
             pt = list(pt)[0][0] # convert to list get tree and remove root node
+            
             pt.draw()
             logging.debug('ParseTree:' + pformat(pt))
 
-            match = self.match_rules(pt)
-            matches_for_sentences.append(match)
+            logging.info('Construct property trees from parsetrees!')
+            prop_tree = PropertyTree.from_parsetree(pt)
+            add_properties(prop_tree)
+            logging.debug(str(prop_tree))
 
-        return matches_for_sentences
+            for rule, head_match, pattern_match in self.match_rules(prop_tree):
+                yield PatternMatcher.Match(sent, rule, head_match, pattern_match)
 
 
-    def match_rules(self, parse_tree):
+    def match_rules(self, prop_tree):
 
-        logging.info('Construct property trees from parsetrees!')
-        prop_tree = PropertyTree.from_parsetree(parse_tree)
-        add_properties(prop_tree)
-        logging.debug(str(prop_tree))
+        if self.head_only_ones:
+            matched_nodes = [] # list of roots that have already been matched
 
-        matched_nodes = [] # list of constrinutes that have already been matched
-        rule_matches = [list() for _ in range(len(self.rules))] # stores a match for each rule.
+        for rule in self.rules:
 
-        for i, (head, pattern) in enumerate(self.rules):
+            head, pattern, predicates = rule
 
-            # find nodes with head-label (roots of subtrees)
-            for node in prop_tree.descendant_or_self:
-                if node.properties['label'] != head:
+            for node in prop_tree.descendant_or_self():
+
+                satisfies_constaints = node.has_properties(**head.constraints)
+
+                logging.debug(
+                    'HEAD_TRY:\n Constraints: %s\n Properties: %s\n> %s!'
+                    %(str(head.constraints), str(node.properties),
+                        'YES!' if satisfies_constaints else 'NO!'))
+
+                if not satisfies_constaints:
                     continue
-                if node in matched_nodes:
+                if self.head_only_ones and node in matched_nodes:
                     continue
-
-                matches = PatternMatcher.match_pattern(pattern, node)
-
-                if len(matches) > 1:
-                    logging.warning('multiple matches for rule ' + str(i))
-
-                if len(matches) == 0:
-                    match = None
+                
+                if self.whole:
+                    start_nodes = node.no_preceding()
                 else:
-                    match = matches[0]
+                    start_nodes = node.descendant_or_self()
+                
+                for match in self._search(start_nodes, pattern):
 
-                rule_matches[i].append(match)
+                    yield rule, (head.varname, node), match
 
-        return rule_matches
+                    if self.head_only_ones:
+                        matched_nodes.append(node)
+                        break
 
 
-    @staticmethod
-    def match_pattern(pattern, root_node, whole=True):
+    def _search(self, nodes, pattern, match=None, index=0):
 
-        # --------------------------------------- #
-        def search(node, index=0):
+        if match is None:
+            match = [None]*len(pattern)
 
-            varname, constraints = pattern[index]
+        varname, constraints = pattern[index]
 
-            imidiate_following = list(node.imidiate_following)
-            #print('\nnode:', node, 'imidiate_following:', len(imidiate_following))
+        for node in nodes:
+
+            satisfies_constaints = node.has_properties(**constraints)
 
             logging.debug(
-                    'TRY:%i\n Constraints: %s\n Properties: %s'
-                    %(index, str(constraints), str(node.properties)))
+                    'PATTERN_TRY:%i\n Constraints: %s\n Properties: %s\n> %s!'
+                    %(index, str(constraints), str(node.properties),
+                        'YES!' if satisfies_constaints else 'NO!'))
 
-            if not node.has_properties(**constraints):
-                logging.debug('NO\n')
-                return
-            logging.debug('YES\n')
+            if not satisfies_constaints:
+                continue
 
-            # assign node to variable
-            match[index] = (varname, node)
+            match[index] = (varname, node) # assign node to variable
 
-            if len(pattern)-1 == index:
+            imidiate_following = node.imidiate_following(root=node)
 
-                if whole and len(imidiate_following):
+            if len(pattern) == index+1:
+                if self.whole:
+                    imidiate_following = list(imidiate_following)
+                    
+                if self.whole and len(imidiate_following):
                     logging.debug('Match, but not whole.')
-                    return
-
-                logging.debug('Pattern match!!!')
-                match_list.append(copy(match))
-                return
-
-            for next_node in imidiate_following:
-                search(next_node, index+1)
-        # --------------------------------------- #
-
-        match_list = [] # stores matches
-        match = [None]*len(pattern) # this works only, because matches have always the same length
-
-        if whole:
-            start_nodes = root_node.no_preceding
-        else:
-            start_nodes = root_node.descendant_or_self
-
-        start_nodes = list(start_nodes)
-        logging.debug('start_nodes' + str([n.properties['label'] for n in start_nodes]) + '\n')
-
-        for node in start_nodes:
-            search(node)
-
-        return match_list
+                else:
+                    logging.debug('Pattern matched!!!')
+                    yield tuple(match)
+            else:
+                yield from self._search(imidiate_following, pattern, match, index+1)
 
 
     @classmethod
-    def from_str(cls, lines):
-        if isinstance(lines, str):
-            lines = lines.splitlines()
-        lines = [line.strip() for line in lines if line.strip()]
-        rules = [parse_rule(line) for line in lines]
-        for r in rules: logging.debug('\n' + pformat(dict(r._asdict())))
-
+    def from_str(cls, rules_str):
+        parser = RuleParser()
+        rules = parser.parse_rules(rules_str)
         return cls(rules)
 
 
@@ -283,75 +252,56 @@ class IteratorTree:
         for child in children: child.parent=self
         self.children += children
 
-    @property
-    def ancestor(self):
-        parent = self.parent
-        while parent:
-            yield parent
-            parent = parent.parent
+    def ancestor(self, root=None):
+        if not (self is root):
+            parent = self.parent
+            while not (parent is root):
+                if parent is None:
+                    raise IteratorTree.RootNotFoundError()
+                yield parent
+                parent = parent.parent
+            if root: yield root
+            
+    def ancestor_or_self(self, root=None):
+        yield self
+        yield from self.ancestor(root)
 
-    @property
-    def ancestor_or_self(self):
-        return chain([self], self.ancestor)
-
-    @property
     def descendant(self):
         #return chain.from_iterable(
         #    child.descendant_or_self for child in self.children)
-        return islice(self.descendant_or_self, 1, None)
+        return islice(self.descendant_or_self(), 1, None)
 
-    @property
     def descendant_or_self(self):
         yield self
         for child in self.children:
-            for des in child.descendant_or_self:
+            for des in child.descendant_or_self():
                 yield des
 
-    @property
     def sibling(self):
-        for node in self.parent.children:
-            if not(node is self):
-                yield node
+        yield from filter(self.__ne__, self.sibling_or_self())
 
-    @property
     def sibling_or_self(self):
-        return iter(self.parent.children)
+        if self.parent: yield from self.parent.children
 
-    @property
     def following(self):
-        for ancestor in self.ancestor_or_self:
-            for fosib in ancestor.following_sibling:
-                for follower in fosib.descendant_or_self:
+        for ancestor in self.ancestor_or_self():
+            for fosib in ancestor.following_sibling():
+                for follower in fosib.descendant_or_self():
                     yield follower
 
-    @property
     def following_sibling(self):
-        if self.parent:
-            siblings = self.parent.children
-            i = siblings.index(self)
-            return islice(siblings, i+1, None)
-        else:
-            return iter(())
+        yield from islice(
+            dropwhile(self.__ne__, self.sibling_or_self()), 1, None)
 
-    @property
     def preceding(self):
-        for ancestor in self.ancestor_or_self:
-            for fosib in ancestor.preceding_sibling:
-                for follower in fosib.descendant_or_self:
-                    yield follower
+        for ancestor in self.ancestor_or_self():
+            for fosib in ancestor.preceding_sibling():
+                yield from fosib.descendant_or_self()
 
-    @property
     def preceding_sibling(self):
-        if self.parent:
-            siblings = self.parent.children
-            i = siblings.index(self)
-            #print('type --- ... ---', type(siblings), type(i), i)
-            return islice(siblings, i)
-        else:
-            return iter(())
+        yield from takewhile(self.__ne__, self.sibling_or_self())
 
-    @property
-    def imidiate_following(self):
+    def imidiate_following(self, root=None):
 
         def next_sibling(node):
             if node.parent and node.parent.children:
@@ -360,17 +310,12 @@ class IteratorTree:
                     return node.parent.children[i+1]
 
         # find next sibling of ancestor or self
-        for node in self.ancestor_or_self:
+        for node in self.ancestor_or_self(root):
             next = next_sibling(node)
             if next:
-                out = next.no_preceding # node and all firstborn
+                yield from next.no_preceding() # node and all firstborn
                 break
-        else:
-            out = iter(())
-        return out
-        
 
-    @property
     def no_preceding(self):
         yield self
         node = self
@@ -385,6 +330,10 @@ class IteratorTree:
         inner = ' '.join(str(c) for c in self.children)        
         return ''.join([name, '[ ', inner, ']'])
 
+    class RootNotFoundError(Exception):
+        pass
+            
+
 
 
 class PropertyTree(IteratorTree):
@@ -392,10 +341,15 @@ class PropertyTree(IteratorTree):
     def __init__(self, parent=None, children=None, **keyargs):
         super(PropertyTree, self).__init__(parent, children)
         self.properties = keyargs
+        self.small_world = True # everything unknown is false
 
         # add IteratorTree as properties
         for prop in IteratorTree.__dict__:
             ... # ???
+
+    def __getitem__(self, key):
+        return self.properties[key]
+
 
 
     @classmethod
@@ -421,20 +375,22 @@ class PropertyTree(IteratorTree):
 
     def has_properties(self, **props):
 
-        out = True
-        for key, value in props.items():
+        for key, value_set in props.items():
             if not (key in self.properties):
-                break
-            if callable(value):
-                value = value()
+                if self.small_world:
+                    break
+                else:
+                    continue
+
             if callable(self.properties[key]):
                 self.properties[key] = self.properties[key]()
-            if self.properties[key] != value:
+
+            if self.properties[key] not in value_set:
                 break
         else:
-            out = False
+            return True
 
-        return out
+        return False
 
 
     def __repr__(self):
@@ -449,25 +405,23 @@ class PropertyTree(IteratorTree):
         return ''.join([name, '[ ', inner, ']'])
 
 
-def TreeList(list):
+Predicate = namedtuple('Predicate', ['name','args'])
 
-    def constrain(self, properties):
-        return TreeList( tree for tree in self
-            if all( item in tree.properties.items() for item in properties.items()))
 
-    def __getattr__(self, name):
-        return TreeList(getattr(tree, name) for tree in self)
+def construct_predicate(self, head_match, pattern_match, predicate_rules):
+    varnames, nodes = zip(head_match, *pattern_match)
+    print(type(varnames))
+    print(type(nodes))
 
-    def __call__(self, **keyargs):
-        return self.constrain(keyargs)
-
+    
 
 
 if __name__ == '__main__':
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     rules = """
+    S :: NP VP :: VP(NP).
     NP :: DT NN
     """
     # NP :: DT NN
@@ -475,14 +429,30 @@ if __name__ == '__main__':
     # S :: DT NN is NP
     # S :: DT NN VP
 
-    sent = "The snake is a python."
+    sent = "Bob saw John with his eyes."
 
     matcher = PatternMatcher.from_str(rules)
-    matches = matcher.match(sent)
 
-    print(matches)
+    print()
+    for match in matcher.match(sent):
+        sent, rule, head_match, pattern_match = match
 
-    for i,match in enumerate(matches):
-        print('\n\nMatches for Sent %i:'%i)
-        for j,m in enumerate(match):
-            print(j, m)
+        hm_varname,  hm_node  = head_match
+        pm_varnames, pm_nodes = zip(*pattern_match)
+
+        hm_label = hm_node['label']
+        pm_labels = [n['label'] for n in pm_nodes]
+
+        hm_term = hm_node['terminal']
+        pm_terms = [n['terminal'] for n in pm_nodes]
+
+        print()
+        print(sent)
+        print(' ', hm_varname, '\t|\t', '\t'.join(pm_varnames))
+        print(' ', hm_label, '\t|\t', '\t'.join(pm_labels))
+        print()
+        print(hm_label, '▶', hm_term)
+        for L,T in zip(pm_labels, pm_terms):
+            print(L, '▶', T)
+
+        input()
