@@ -31,6 +31,14 @@ class TestIteratroTree(unittest.TestCase):
         b = frozenset([self.J, self.E, self.B, self.A])
         self.assertEqual(a,b)
 
+        a = frozenset(self.J.ancestor_or_self(root=self.E))
+        b = frozenset([self.J, self.E])
+        self.assertEqual(a,b)
+
+        a = frozenset(self.J.ancestor_or_self(root=self.J))
+        b = frozenset([self.J])
+        self.assertEqual(a,b) 
+
     def test_decendant(self):
         a = frozenset(self.J.descendant())
         #print([x.label for x in a])
@@ -87,6 +95,14 @@ class TestIteratroTree(unittest.TestCase):
         b = frozenset([self.K])
         self.assertEqual(a,b)
 
+        a = frozenset( self.U.imidiate_following(root=self.P) )
+        b = frozenset([])
+        self.assertEqual(a,b)  
+
+        a = frozenset( self.O.imidiate_following(root=self.O) )
+        b = frozenset([])
+        self.assertEqual(a,b)      
+
     def test_no_preceding(self):
         a = frozenset(self.E.no_preceding())
         b = frozenset([self.E, self.H, self.M])
@@ -98,27 +114,42 @@ class TestRuleParser(unittest.TestCase):
     def setUp(self):
         self.parser = RuleParser()
 
-    def _test_simple(self):
+    def test_patter_simple(self):
         rules_str = """
-        S :: NP VP
+        S : NP VP ::
         """
         rule = self.parser.parse_rules(rules_str)[0]
         self.assertEqual(rule.head, RuleParser.PatternToken('S', {'label':{'S'}}))
         self.assertEqual(rule.pattern[0], RuleParser.PatternToken('NP', {'label':{'NP'}}))
         self.assertEqual(rule.pattern[1], RuleParser.PatternToken('VP', {'label':{'VP'}}))
 
-    def test_complex(self):
+    def test_patter_complex(self):
         rules_str = """
-        S[type=animal] :: NP[a={c,x}, b=0] VP
+        S[type=animal] : NP[a={c,x}, b=0] VP ::
         """
         rule = self.parser.parse_rules(rules_str)[0]
         self.assertEqual(rule.head, RuleParser.PatternToken('S', {'label':{'S'},'type':{'animal'}}))
         self.assertEqual(rule.pattern[0], RuleParser.PatternToken('NP', {'label':{'NP'},'a':{'c','x'},'b':{'0'}}))
         self.assertEqual(rule.pattern[1], RuleParser.PatternToken('VP', {'label':{'VP'}}))
 
+    def test_relations_and_transformation(self):
+        rules_str = """
+        VP : VBP NP PP : VBP -> NP, PP -> VBP : VBP
+        """
+        rule = self.parser.parse_rules(rules_str)[0]
+        self.assertEqual(len(rule.relations), 2)
+        self.assertEqual(rule.relations[0], ('VBP', 'NP'))
+        self.assertEqual(rule.relations[1], ('PP', 'VBP'))
+        self.assertEqual(rule.transformation, 'VBP')
 
-class TestPropertyTree(unittest.TestCase):
-    ...
+    def test_string_replacement(self):
+        rules_str = """
+        DT : a : : indefinite
+        """
+        rule = self.parser.parse_rules(rules_str)[0]
+        self.assertEqual(len(rule.relations), 0)
+        self.assertEqual(rule.transformation, 'indefinite')
+
 
 
 if __name__ == '__main__':

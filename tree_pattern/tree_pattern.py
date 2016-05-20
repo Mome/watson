@@ -14,10 +14,11 @@ os.environ['STANFORD_MODELS'] = stanford_path
 os.environ['STANFORD_PARSER'] = stanford_path
 stanford_parser = stanford.StanfordParser() 
 
-constitunt_makros = {
-    'V' : 'VB VBD VBG VBN VBP VBZ'.split(),
-    'N' : 'NN NNS NNP NNPS'.split(),
-    'W' : 'WHADJP WHAVP WHNP WHPP'.split(),
+constituent_macros = {
+    'V'  : 'VB VBD VBG VBN VBP VBZ'.split(),
+    'N'  : 'NN NNS NNP NNPS'.split(),
+    'W'  : 'WHADJP WHAVP WHNP WHPP'.split(),
+    'SS' : 'S SBAR SBARQ SINV SQ'.split()
 }
 
 constituent_list = """S SBAR SBARQ SINV SQ ADJP ADVP CONJP FRAG INTJ LST NAC NP
@@ -25,15 +26,24 @@ NX PP PRN PRT QP RRC UCP VP WHADJP WHAVP WHNP WHPP X CC CD DT EX FW IN JJ JJR
 JJS LS MD NN NNS NNP NNPS PDT POS PRP PRP$ RB RBR RBS RP SYM TO UH VB VBD VBG
 VBN VBP VBZ WDT WP WP$ WRB""".split()
 
+relation_constituents = constituent_macros['V'] + ['IN', 'VP', 'TO']
+statement_contsituents = constituent_macros['SS'] + constituent_macros['W']
+
+def contsituen2type(const):
+    if const in relation_constituents:
+        return 'relation'
+    if const in statement_contsituents:
+        return 'statement'
+
 
 class RuleParser:
 
     PatternToken = namedtuple('PatternToken',['varname','constraints'])
-    Rule = namedtuple('Rule', ['head', 'pattern', 'predicates'])
+    Rule = namedtuple('Rule', ['head', 'pattern', 'relations', 'transformation'])
 
 
     def __init__(self):
-        nonums = alphas + '.!?$'
+        nonums = alphas + '.!?$_§@'
         singel_constraint_value = Word(alphanums).setResultsName('value')
 
         constraint_value = Group(
@@ -65,13 +75,30 @@ class RuleParser:
 
         pattern = Group(ZeroOrMore(p_token)).setResultsName('pattern')
 
-        arg = Word(alphanums).setResultsName('arg')
-        arguments = Group(arg + ZeroOrMore(Suppress(',') + arg)).setResultsName('arglist')
-        predicate = Word(alphanums).setResultsName('name') + Suppress('(') + Optional(arguments) + Suppress(')')
-        predicate_list = Group(Optional(predicate + ZeroOrMore(',' + predicate))).setResultsName('predicate_list')
+        #arg = Word(alphanums).setResultsName('arg')
+        #arguments = Group(arg + ZeroOrMore(Suppress(',') + arg)).setResultsName('arglist')
+        #predicate = Word(alphanums).setResultsName('name') + Suppress('(') + Optional(arguments) + Suppress(')')
+        #predicate_list = Group(Optional(predicate + ZeroOrMore(',' + predicate))).setResultsName('predicate_list')
 
-        rule = Group(p_token.setResultsName('head') + Suppress('::') + pattern + Optional(Suppress('::') + predicate_list)).setResultsName('rule')
-        #rule = rule.setResultsName('code')
+        relation = Group(
+            Word(nonums + nums).setResultsName('left')
+            + Suppress(oneOf('-> -'))
+            + Word(nonums + nums).setResultsName('right')
+            ).setResultsName('relation')
+        relation_list = Group(relation + ZeroOrMore(Suppress(',') + relation)).setResultsName('relation_list')
+
+        transformation = Word(nonums + nums).setResultsName('transformation')
+
+        rule = Group(
+            p_token.setResultsName('head')
+            + Suppress(':')
+            + pattern
+            + Suppress(':')
+            + Optional(relation_list)
+            + Suppress(':')
+            + Optional(transformation)
+        ).setResultsName('rule')
+        
         rule.ignore( pythonStyleComment )
 
         self._parser = rule
@@ -83,13 +110,14 @@ class RuleParser:
         rules = []
         for line in rules_str.splitlines():
             line = line.strip()
-            if not line:
+            if not line or line.startswith('#'):
                 continue
             parsetree = parser.parseString(line).rule
             head = self.__class__._construct_ptoken(parsetree.head)
             pattern = [self.__class__._construct_ptoken(pt) for pt in parsetree.pattern]
-            predicates = [self.__class__._construct_predicate(pre) for pre in parsetree.predicate_list]
-            rules.append(self.__class__.Rule(head, pattern, None))
+            relations = [(left, right) for left, right in parsetree.relation_list]
+            transformation = parsetree.transformation
+            rules.append(self.__class__.Rule(head, pattern, relations, transformation))
         return rules
 
 
@@ -98,6 +126,9 @@ class RuleParser:
         constraint_dict = {}
         if ptoken.alpha in constituent_list:
             constraint_dict['label'] = {ptoken.alpha}
+        elif ptoken.alpha in constituent_macros:
+            labels = constituent_macros[ptoken.alpha]
+            constraint_dict['label'] = set(labels)
         elif not ptoken.alpha.isupper():
             constraint_dict['terminal'] = {ptoken.alpha}
 
@@ -109,23 +140,131 @@ class RuleParser:
                constraint_dict[key] = value_set
         return cls.PatternToken(ptoken.alpha + ptoken.num, constraint_dict)
 
-    @classmethod
-    def _construct_predicate(cls, predicate):
-        print('pred',type(predicate), predicate)
-        #print('pname', predicate.name)
-        #print('plist', predicate.arglist)
-
-
-
-
 def add_properties(prop_tree):
     for node in prop_tree.descendant_or_self():
         node.properties['terminal'] = node.terminals
 
+class ConceptualGraph:
+
+    Node = namedtuple('Node', ['id_', 'label', 'type'])
+    Edge = namedtuple('Edge', ['left', 'right'])
+
+    type_map = {
+        'relation' : 'shape=box',
+        'statement' : 'shape=polygon',
+        None : 'shape=ellipse'
+    }
+
+    def __init__(self):
+        self.nodes = []
+        self.edges = []
+
+    def add_edge(self, left, right):
+        if left not in self.nodes:
+            self.nodes.append(left)
+        if right not in self.nodes:
+            self.nodes.append(right)
+        self.edges.append(ConceptualGraph.Edge(left, right))
+
+    def to_dot(self):
+        dot_code = ['digraph{', 'rankdir=LR;']
+
+        for node in self.nodes:
+            label = 'label=' + '"' + node.label + '"'
+            type_ = ConceptualGraph.type_map[node.type]
+            content = ', '.join([label, type_])
+            line = ['N' + str(id(node)), '[', content, ']']
+            dot_code.append(' '.join(line))
+
+        for edge in self.edges:
+            right = 'N' + str(id(edge.right))
+            left  = 'N' + str(id(edge.left))
+            line  = [left, '->', right]
+            dot_code.append(' '.join(line))
+
+        dot_code.append('}')
+
+        return '\n'.join(dot_code)
+
+
+class GraphBuilder:
+    
+    def __init__(self, pattern_matcher):
+        self.pattern_matcher = pattern_matcher
+
+    def build(self, sents):
+
+        # tokenize sentences
+        if isinstance(sents, str):
+            sents = [
+                nltk.word_tokenize(s)
+                for s in nltk.sent_tokenize(sents)
+            ]
+
+        logging.info('Construnct parsetree for all sentences!')
+        parse_trees = stanford_parser.parse_sents(sents)
+
+        for pt, sent in zip(parse_trees, sents):
+
+            pt = list(pt)[0][0] # convert to list get tree and remove root node
+            
+            #import threading; threading.Thread(None, pt.draw).start()
+            pt.draw()
+
+            logging.debug('ParseTree:' + pformat(pt))
+
+            logging.info('Construct property trees from parsetrees!')
+            prop_tree = PropertyTree.from_parsetree(pt)
+            add_properties(prop_tree)
+            logging.debug(str(prop_tree))
+
+            tmp_list = [
+                (match.relations, match.transformation)
+                for match in self.pattern_matcher.match_rules(prop_tree)]
+            
+            if len(tmp_list) == 0:
+                logging.info('No match for: "' + ' '.join(sent) + '"')
+                continue
+
+            relations, transformations = zip(*tmp_list)
+
+            trans_dict = dict(transformations)
+            trans_dict = {
+                key : trans_dict[value] if value in trans_dict else value
+                for key, value in trans_dict.items()}
+
+            transformed_relations = []
+            for left, right in chain(*relations):
+                if left in trans_dict:
+                    left = trans_dict[left]
+                if right in trans_dict:
+                    right = trans_dict[right]
+                transformed_relations.append((left, right))
+
+            graph = ConceptualGraph()
+
+            for left, right in transformed_relations:
+
+                
+
+                # TODO -- this is a hack and should be fixed!!
+                # some make sure nodes dont get added double
+                left_node = ConceptualGraph.Node(
+                    label=left if isinstance(left, str) else left['terminal'],
+                    type=contsituen2type(None if isinstance(left, str) else left['label']))
+                right_node = ConceptualGraph.Node(
+                    label=right if isinstance(right, str) else right['terminal'],
+                    type=contsituen2type(None if isinstance(right, str) else right['label']))
+
+                graph.add_edge(left_node, right_node)
+
+            yield graph
+
 
 class PatternMatcher:
 
-    Match = namedtuple('Match', ['sent', 'rule','head_match','pattern_match'])
+    Match = namedtuple('Match', ['prop_tree', 'rule', 'head_match',
+                                 'pattern_match', 'relations', 'transformation'])
 
     def __init__(self, rules, whole=True, head_only_ones=True):
         self.rules = rules
@@ -149,7 +288,7 @@ class PatternMatcher:
 
             pt = list(pt)[0][0] # convert to list get tree and remove root node
             
-            pt.draw()
+            #pt.draw()
             logging.debug('ParseTree:' + pformat(pt))
 
             logging.info('Construct property trees from parsetrees!')
@@ -157,8 +296,7 @@ class PatternMatcher:
             add_properties(prop_tree)
             logging.debug(str(prop_tree))
 
-            for rule, head_match, pattern_match in self.match_rules(prop_tree):
-                yield PatternMatcher.Match(sent, rule, head_match, pattern_match)
+            yield from self.match_rules(prop_tree)
 
 
     def match_rules(self, prop_tree):
@@ -168,70 +306,89 @@ class PatternMatcher:
 
         for rule in self.rules:
 
-            head, pattern, predicates = rule
+            head, pattern, _, _ = rule
 
-            for node in prop_tree.descendant_or_self():
+            for head_node in prop_tree.descendant_or_self():
 
-                satisfies_constaints = node.has_properties(**head.constraints)
+                satisfies_constaints = head_node.has_properties(**head.constraints)
 
                 logging.debug(
                     'HEAD_TRY:\n Constraints: %s\n Properties: %s\n> %s!'
-                    %(str(head.constraints), str(node.properties),
+                    %(str(head.constraints), str(head_node.properties),
                         'YES!' if satisfies_constaints else 'NO!'))
 
                 if not satisfies_constaints:
                     continue
-                if self.head_only_ones and node in matched_nodes:
+                if self.head_only_ones and head_node in matched_nodes:
                     continue
                 
                 if self.whole:
-                    start_nodes = node.no_preceding()
+                    start_nodes = head_node.no_preceding()
                 else:
-                    start_nodes = node.descendant_or_self()
+                    start_nodes = head_node.descendant_or_self()
                 
-                for match in self._search(start_nodes, pattern):
+                for match in self._search(start_nodes, pattern, head_node):
 
-                    yield rule, (head.varname, node), match
+                    # TODO -- check for double varnames ?
+                    match_dict = dict(match)
+                    match_dict[head.varname] = head_node
+
+                    relations = [
+                        (match_dict[left], match_dict[right])
+                        for left, right in rule.relations
+                        ]
+
+                    transformation = (
+                        head_node,
+                        match_dict[rule.transformation] if rule.transformation in match_dict else rule.transformation
+                        )
+                    head_match = (head.varname, head_node)
+
+                    yield PatternMatcher.Match(
+                        prop_tree, rule, head_match,
+                        match, relations, transformation)
 
                     if self.head_only_ones:
-                        matched_nodes.append(node)
+                        matched_nodes.append(head_node)
                         break
 
 
-    def _search(self, nodes, pattern, match=None, index=0):
+    def _search(self, nodes, pattern, head_node, match=None, index=0):
 
         if match is None:
             match = [None]*len(pattern)
 
-        varname, constraints = pattern[index]
-
-        for node in nodes:
-
-            satisfies_constaints = node.has_properties(**constraints)
-
-            logging.debug(
-                    'PATTERN_TRY:%i\n Constraints: %s\n Properties: %s\n> %s!'
-                    %(index, str(constraints), str(node.properties),
-                        'YES!' if satisfies_constaints else 'NO!'))
-
-            if not satisfies_constaints:
-                continue
-
-            match[index] = (varname, node) # assign node to variable
-
-            imidiate_following = node.imidiate_following(root=node)
-
-            if len(pattern) == index+1:
-                if self.whole:
-                    imidiate_following = list(imidiate_following)
-                    
-                if self.whole and len(imidiate_following):
-                    logging.debug('Match, but not whole.')
-                else:
-                    logging.debug('Pattern matched!!!')
-                    yield tuple(match)
+        if len(pattern) == index:
+            if self.whole:
+                nodes = list(nodes)
+                
+            if self.whole and len(nodes):
+                #print(nodes, index)
+                logging.debug('Match, but not whole.')
             else:
-                yield from self._search(imidiate_following, pattern, match, index+1)
+                logging.debug('Pattern matched!!!')
+                yield tuple(match)
+
+        else:
+            varname, constraints = pattern[index]
+
+            for node in nodes:
+
+                satisfies_constaints = node.has_properties(**constraints)
+
+                logging.debug(
+                        'PATTERN_TRY:%i\n Constraints: %s\n Properties: %s\n> %s!'
+                        %(index, str(constraints), str(node.properties),
+                            'YES!' if satisfies_constaints else 'NO!'))
+
+                if not satisfies_constaints:
+                    continue
+
+                match[index] = (varname, node) # assign node to variable
+
+                imidiate_following = node.imidiate_following(root=head_node)
+
+                yield from self._search(imidiate_following, pattern, head_node, match, index+1)
 
 
     @classmethod
@@ -239,6 +396,9 @@ class PatternMatcher:
         parser = RuleParser()
         rules = parser.parse_rules(rules_str)
         return cls(rules)
+
+    class PatternMatchingError(Exception):
+        pass
 
 
 
@@ -304,7 +464,7 @@ class IteratorTree:
     def imidiate_following(self, root=None):
 
         def next_sibling(node):
-            if node.parent and node.parent.children:
+            if node!=root and node.parent and node.parent.children:
                 i = node.parent.children.index(node)
                 if len(node.parent.children) > i+1:
                     return node.parent.children[i+1]
@@ -403,39 +563,34 @@ class PropertyTree(IteratorTree):
             return name + ' "' + self.terminals + '"'
         inner = ' '.join(str(c) for c in self.children)        
         return ''.join([name, '[ ', inner, ']'])
-
-
-Predicate = namedtuple('Predicate', ['name','args'])
-
-
-def construct_predicate(self, head_match, pattern_match, predicate_rules):
-    varnames, nodes = zip(head_match, *pattern_match)
-    print(type(varnames))
-    print(type(nodes))
-
     
 
+def main():
+    import sys; args=sys.argv[1:]
 
-if __name__ == '__main__':
+    if not args:
+        raise Warning('Need sentences!')
+        sys.exit(0)
 
     logging.basicConfig(level=logging.INFO)
 
-    rules = """
-    S :: NP VP :: VP(NP).
-    NP :: DT NN
-    """
-    # NP :: DT NN
-    # 
-    # S :: DT NN is NP
-    # S :: DT NN VP
+    sents = args[0]
 
-    sent = "Bob saw John with his eyes."
+    with open('rules') as f:
+        rules = f.read()
 
     matcher = PatternMatcher.from_str(rules)
+    builder = GraphBuilder(matcher)
 
+    for graph in builder.build(sents):
+        dot_code = graph.to_dot()
+        print(dot_code)
+
+    """print()
     print()
+    print('Check matches first!!!')
     for match in matcher.match(sent):
-        sent, rule, head_match, pattern_match = match
+        prop_tree, rule, head_match, pattern_match, _r, _t  = match
 
         hm_varname,  hm_node  = head_match
         pm_varnames, pm_nodes = zip(*pattern_match)
@@ -448,11 +603,15 @@ if __name__ == '__main__':
 
         print()
         print(sent)
-        print(' ', hm_varname, '\t|\t', '\t'.join(pm_varnames))
-        print(' ', hm_label, '\t|\t', '\t'.join(pm_labels))
+        print(' ', hm_varname, '\t| ', '\t'.join(pm_varnames))
+        print(' ', hm_label, '\t| ', '\t'.join(pm_labels))
         print()
         print(hm_label, '▶', hm_term)
         for L,T in zip(pm_labels, pm_terms):
             print(L, '▶', T)
 
-        input()
+        input()"""
+
+
+if __name__ == '__main__':
+    main()
