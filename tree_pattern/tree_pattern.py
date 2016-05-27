@@ -1,4 +1,4 @@
-from itertools import chain, islice, tee, takewhile, dropwhile
+from itertools import chain, islice, tee, takewhile, dropwhile, count
 import nltk
 from collections import namedtuple
 import os
@@ -18,7 +18,8 @@ constituent_macros = {
     'V'  : 'VB VBD VBG VBN VBP VBZ'.split(),
     'N'  : 'NN NNS NNP NNPS'.split(),
     'W'  : 'WHADJP WHAVP WHNP WHPP'.split(),
-    'SS' : 'S SBAR SBARQ SINV SQ'.split()
+    'SS' : 'S SBAR SBARQ SINV SQ'.split(),
+    'J'  : 'JJ JJR JJS'.split(),
 }
 
 constituent_list = """S SBAR SBARQ SINV SQ ADJP ADVP CONJP FRAG INTJ LST NAC NP
@@ -166,6 +167,11 @@ class ConceptualGraph:
             self.nodes.append(right)
         self.edges.append(ConceptualGraph.Edge(left, right))
 
+    def get_by_id(self, id_):
+        for node in self.nodes:
+            if node.id_ == id_:
+                return node
+
     def to_dot(self):
         dot_code = ['digraph{', 'rankdir=LR;']
 
@@ -173,12 +179,12 @@ class ConceptualGraph:
             label = 'label=' + '"' + node.label + '"'
             type_ = ConceptualGraph.type_map[node.type]
             content = ', '.join([label, type_])
-            line = ['N' + str(id(node)), '[', content, ']']
+            line = ['N' + str(node.id_), '[', content, ']']
             dot_code.append(' '.join(line))
 
         for edge in self.edges:
-            right = 'N' + str(id(edge.right))
-            left  = 'N' + str(id(edge.left))
+            right = 'N' + str(edge.right.id_)
+            left  = 'N' + str(edge.left.id_)
             line  = [left, '->', right]
             dot_code.append(' '.join(line))
 
@@ -196,6 +202,7 @@ class GraphBuilder:
 
         # tokenize sentences
         if isinstance(sents, str):
+            sents = sents.lower() # convert to lower case !!!
             sents = [
                 nltk.word_tokenize(s)
                 for s in nltk.sent_tokenize(sents)
@@ -243,19 +250,27 @@ class GraphBuilder:
 
             graph = ConceptualGraph()
 
+            id_counter = count()
             for left, right in transformed_relations:
 
+                left_id = next(id_counter) if isinstance(left, str) else id(left)
+                right_id = next(id_counter) if isinstance(right, str) else id(right)
+
+                left_node = graph.get_by_id(left_id)
+                right_node = graph.get_by_id(right_id)
+
+                if left_node is None:
+                    left_node = ConceptualGraph.Node(
+                        id_=left_id,
+                        label=left if isinstance(left, str) else left['terminal'],
+                        type=contsituen2type(None if isinstance(left, str) else left['label']))
+
+                if right_node is None:
+                    right_node = ConceptualGraph.Node(
+                        id_=right_id,
+                        label=right if isinstance(right, str) else right['terminal'],
+                        type=contsituen2type(None if isinstance(right, str) else right['label']))
                 
-
-                # TODO -- this is a hack and should be fixed!!
-                # some make sure nodes dont get added double
-                left_node = ConceptualGraph.Node(
-                    label=left if isinstance(left, str) else left['terminal'],
-                    type=contsituen2type(None if isinstance(left, str) else left['label']))
-                right_node = ConceptualGraph.Node(
-                    label=right if isinstance(right, str) else right['terminal'],
-                    type=contsituen2type(None if isinstance(right, str) else right['label']))
-
                 graph.add_edge(left_node, right_node)
 
             yield graph

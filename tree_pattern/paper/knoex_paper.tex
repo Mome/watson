@@ -1,0 +1,149 @@
+%% LyX 2.1.4 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass[english]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{babel}
+\usepackage[]{algorithm2e}
+\usepackage{newlfont}
+
+
+\begin{document}
+
+\title{A Domain Specific Language for Relation Extraction by Pattern Matching in Parse Trees}
+
+
+\author{Moritz Meier}
+
+\maketitle
+
+\section{Introduction}
+
+Due to the imense complexity and ambiguity of human language, Information
+extraction (IE) from written natural language remains an unsolved
+problem.
+
+, which aimed to extract acestor\textbackslash{}
+:\textbackslash{} pattern\textbackslash{} :\textbackslash{} predicates\textbackslash{}
+:\textbackslash{} transformationsemantic relations from textual data
+in order to construct an ontology. The algorithm described here, was
+designed to harness the information of phrase structure (or constituent)
+parse trees. The DSL (Domain-Specific Language) to define the patterns
+is designed to 
+
+
+\section{Motivation}
+Natural Langanguage can be seen as a \textit{serialization of thought}. In order to communicate, the sender encodes a part of his mental content into a one-dimensional representation and transmits it to the receiver who retranslates it into his own mental representation. Words that refere to entites are hereby set into relation to other concepts or entities, which can happen in arbitrary convoluted ways. Adjectives can add properties to entities, which are expressed by a noun. Prepositional clauses may modify a process or action denoted by a verb. Same words can have different meanings. Word endings contain infomation about tense or number.
+
+Most of these combinations happen from a local to a global scale: Two adjacent words refere to an entity, a chunk of some other words may refer to something else, a chunking of them again may express a process or relation. Thus it comes natural to see a hierachical structure within each sentence. Constituency-based parse trees (or phrase-structure parse trees) are a natural way to assign a hieracical structure to a sentence. Despite beeing a syntactic method, constituency-based parse trees contain a lot explicite semantic information. Some constituents refer to a single entity or concept, others express relatations between concepts.
+
+Computational linguistics also possesses various other methods to recognize properties of single words within a sentence. POS-tagging finds the syntactic role of words, lemmatization removes inflection, NER-tagging assigs nouns to (semantic) categories. The aim of this paper it to develop a method to incorporate information of words or chunks to extract predicates that can be feed into a database or ontology.
+
+ 
+\section{Related Work}
+
+The possibly best known example for pattern matching in words and
+constituents of a sentence for relation extractions are Hearst-Patterns.
+example Pattern Matching in trees is used in various different contexts.
+One exmaple is the widely used XPath (XML Path Language), which is
+a query language for node selection in XML documents, defined by the
+W3C. Another python package \textit{ptTools }ialso defines a DNS for
+pattern matching in parse trees, it is however intended to be applied
+on python parse trees for code analysis and testing. In other cases
+pattern matching is used to construct dependency parse trees from
+phrase structure parse tress {[}citation{]}.
+
+\begin{figure}
+
+%%\centering{}\includegraphics[scale=0.4]{pathx_axes.gif}\caption{Subset of relationships expressable in XPath}
+
+\end{figure}
+
+
+Figure 1 visualizes the basic relationships that can be expressed
+in XPath in order to construct more complex patterns. Patterns can
+be matched on two axes, relative to a matching node denoted as \textit{self}.
+On the vertical axis a higher level node can be mached as \textit{ancestor},
+a lower as \textit{decendant}. A ancestor of first degree is a \textit{parent}
+and a decendent of first degree a \textit{child}. On the horizontal
+axis \textit{preceding} and \textit{following} nodes can be matched.
+If a preceding or following also happens to be a sibling, it can be
+matched with \textit{preceding-sibling} and \textit{following-sibling}.
+
+
+\section{Problem}
+
+Pattern matching in tagged or parsed corpora is a common technique
+
+in computational linguistics. A classical example for the extraction
+of semantic relations from syntaxtic structures are Hearst-Patterns.
+
+Consider the two-word sentence ``Lara jumps'' and its corresponding
+parse tree.
+
+A phrase structure parse tree captures the a 
+
+
+\section{DSL Syntax}
+
+A program in the Domain-Specific language consists of list of rules,
+each seperated by a newline. A rule consists of three parts a head,
+a pattern and transformation. 
+
+\[
+\mathtt{head\ ::\ pattern\ ::\ predicates\ ::\ transformation}
+\]
+The head part defines the highest node, of a subtree in wich the pattern
+can be matched. The pattern part is a list of terminals or constituents,
+which implicitely defines a series of next-potential-follower relations.
+The tansformation defines a function call.
+
+The pattern part consists of a series of graph relations. The graph
+relations are for once the graph relations also available in XPath
+(child, parent, sibling, follower, ancestor) and for the other a series
+of imidiate-follower relations, written in the Hearst-Pattern style.
+
+The predicate part defines the semantic relations between the matched
+strings. 
+
+The transformation part 
+
+
+\section{Examples}
+
+sparql querries
+
+
+\section{Matching algorithm}
+\label{sec:algorithm}
+
+Every constituent can be connected to one entity. If a pattern matches
+on a constituent, a pattern gets assigned to that constituent.
+
+
+\begin{algorithm}
+
+parsetree $\leftarrow$ parse(sentence)
+
+\ForEach{rule}{
+  (head, pattern, predicates) $\leftarrow$ rule
+  
+  subtrees $\leftarrow$ nodes of parsetree that satisfy head-condition
+  
+  \ForEach{$subtree$}{
+    matches $\leftarrow$ match(pattern, subtree)
+    
+    construct\_relations(matches, predictates)
+  }
+
+}
+
+\end{algorithm}
+
+\section{Conclusion}
+\textbf{Acknowledgements.} This work was part of the \textit{Kœx} project (abbr. knowledge
+extraction from text), which again was a subproject of the \textit{SOMA} study project at the University of Osnabrück.
+
+\bibliography{knoex.bib}{}
+\bibliographystyle{plain}
+
+\end{document}
