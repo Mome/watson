@@ -83,6 +83,8 @@ parse tree.
 A phrase structure parse tree captures the a 
 
 
+
+
 \section{DSL Syntax}
 
 A program in the Domain-Specific language consists of list of rules,
@@ -90,7 +92,7 @@ each seperated by a newline. A rule consists of three parts a head,
 a pattern and transformation. 
 
 \[
-\mathtt{head\ ::\ pattern\ ::\ predicates\ ::\ transformation}
+\mathtt{head\ :\ pattern\ :\ predicates\ :\ transformation}
 \]
 The head part defines the highest node, of a subtree in wich the pattern
 can be matched. The pattern part is a list of terminals or constituents,
@@ -113,13 +115,26 @@ The transformation part
 sparql querries
 
 
-\section{Matching algorithm}
-\label{sec:algorithm}
+\section{Algorithm}
+
+1 parse sentence
+2 create property tree from parsetree
+3 for each rule
+  3.1 find subtrees where root node matches head constraints
+  3.2 for each subtree
+    3.2.1 find nodes without preceding nodes
+    3.2.2 for each node match pattern
+
+\subsection{Matching}
+
+The matching works as following: 
+
+\subsection{Graph Building}
 
 Every constituent can be connected to one entity. If a pattern matches
 on a constituent, a pattern gets assigned to that constituent.
 
-
+\label{sec:algorithm}
 \begin{algorithm}
 
 parsetree $\leftarrow$ parse(sentence)
@@ -140,7 +155,7 @@ parsetree $\leftarrow$ parse(sentence)
 \end{algorithm}
 
 \section{Conclusion}
-\textbf{Acknowledgements.} This work was part of the \textit{Kœx} project (abbr. knowledge
+\textbf{Acknowledgements.} This work was part of the \textit{Koex} project (abbr. knowledge
 extraction from text), which again was a subproject of the \textit{SOMA} study project at the University of Osnabrück.
 
 \bibliography{knoex.bib}{}

@@ -1,11 +1,14 @@
 from itertools import chain, islice, tee, takewhile, dropwhile, count
-import nltk
+from pprint import pformat, pprint
 from collections import namedtuple
 import os
-from nltk.parse import stanford
 import logging
-from pprint import pformat, pprint
+
+import nltk
+from nltk.parse import stanford
 from pyparsing import *
+
+from utils import partialsort
 #logging.basicConfig(level=logging.INFO)
 
 
@@ -147,7 +150,7 @@ def add_properties(prop_tree):
 
 class ConceptualGraph:
 
-    Node = namedtuple('Node', ['id_', 'label', 'type'])
+    Node = namedtuple('Node', ['id_', 'label', 'type', 'subgraph'])
     Edge = namedtuple('Edge', ['left', 'right'])
 
     type_map = {
@@ -175,12 +178,26 @@ class ConceptualGraph:
     def to_dot(self):
         dot_code = ['digraph{', 'rankdir=LR;']
 
+        subgraphs = {}
+
         for node in self.nodes:
             label = 'label=' + '"' + node.label + '"'
             type_ = ConceptualGraph.type_map[node.type]
             content = ', '.join([label, type_])
             line = ['N' + str(node.id_), '[', content, ']']
-            dot_code.append(' '.join(line))
+            line = ' '.join(line)
+            if node.subgraph is None:
+                dot_code.append(line)
+            else:
+                if node.subgraph in subgraphs:
+                    subgraphs[node.subgraph].append(line)
+                else:
+                    subgraphs[node.subgraph] = [line]
+
+        for name, lines in subgraphs.items():
+            dot_code.append('subgraph C' + str(name) + '{')
+            for l in lines: dot_code.append('  ' + l)
+            dot_code.append('}')
 
         for edge in self.edges:
             right = 'N' + str(edge.right.id_)
@@ -216,7 +233,7 @@ class GraphBuilder:
             pt = list(pt)[0][0] # convert to list get tree and remove root node
             
             #import threading; threading.Thread(None, pt.draw).start()
-            pt.draw()
+            # pt.draw()
 
             logging.debug('ParseTree:' + pformat(pt))
 
@@ -240,6 +257,10 @@ class GraphBuilder:
                 key : trans_dict[value] if value in trans_dict else value
                 for key, value in trans_dict.items()}
 
+            # find self translations to construct subgraphs
+            subgraph_roots = [k for k,v in trans_dict.items() if k is v]
+            subgraph_roots = partialsort(subgraph_roots, PropertyTree.cmp)
+
             transformed_relations = []
             for left, right in chain(*relations):
                 if left in trans_dict:
@@ -259,19 +280,42 @@ class GraphBuilder:
                 left_node = graph.get_by_id(left_id)
                 right_node = graph.get_by_id(right_id)
 
+                # decide if nodes are part of subgraph
+                if None in (left_node, right_node):
+                    left_subgraph, right_subgraph = None, None
+                    if isinstance(right, str):
+                        logging.warn('String destination for subgraphs not implemented yet:' + tmp_right)
+                    else:
+                        for i,sgr in enumerate(subgraph_roots):
+                            if right in sgr.descendant_or_self():
+                                right_subgraph = i
+                                if isinstance(left, str):
+                                    left_subgraph = i
+                                break
+                    if not isinstance(left, str):
+                        for i,sgr in enumerate(subgraph_roots):
+                            if left in sgr.descendant_or_self():
+                                left_subgraph = i
+                                break
+
                 if left_node is None:
                     left_node = ConceptualGraph.Node(
                         id_=left_id,
                         label=left if isinstance(left, str) else left['terminal'],
-                        type=contsituen2type(None if isinstance(left, str) else left['label']))
+                        type=contsituen2type(None if isinstance(left, str) else left['label']),
+                        subgraph=left_subgraph)
+
 
                 if right_node is None:
                     right_node = ConceptualGraph.Node(
                         id_=right_id,
                         label=right if isinstance(right, str) else right['terminal'],
-                        type=contsituen2type(None if isinstance(right, str) else right['label']))
+                        type=contsituen2type(None if isinstance(right, str) else right['label']),
+                        subgraph=right_subgraph)
                 
                 graph.add_edge(left_node, right_node)
+
+            #print(graph.nodes)
 
             yield graph
 
@@ -525,8 +569,6 @@ class PropertyTree(IteratorTree):
     def __getitem__(self, key):
         return self.properties[key]
 
-
-
     @classmethod
     def from_parsetree(cls, nltktree, parent=None):
         if isinstance(nltktree, str):
@@ -537,7 +579,6 @@ class PropertyTree(IteratorTree):
             new_tree.children = [cls.from_parsetree(subtree, new_tree) for subtree in nltktree]
             new_tree.children = [x for x in new_tree.children if not x is None]
         return new_tree
-
 
     @property
     def terminals(self):
@@ -567,6 +608,14 @@ class PropertyTree(IteratorTree):
 
         return False
 
+    def cmp(self, node):
+        if self in node.descendant():
+            value = 1
+        elif node in self.descendant():
+            value = -1
+        else:
+            value = 0
+        return value
 
     def __repr__(self):
         return self.__str__()

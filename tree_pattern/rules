@@ -11,6 +11,6 @@ NP : DT J N : DT-N, J-N : N
 
 PP : Y[label={TO,IN}] NP : NP-Y : Y
 
-DT : _[terminal={a, an}] :: §indefinite
-DT : the :: §definite
+DT : _[terminal={a, an}] :: indefinite
+DT : the :: definite
 
