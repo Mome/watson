@@ -1,5 +1,7 @@
 import nltk, os, sys
 from nltk.parse import stanford
+from utils import proptree_to_dot
+from tree_pattern import PropertyTree, add_properties
 
 
 stanford_path = os.path.expanduser('~/.local/stanford-parser-full-2015-12-09')
@@ -19,4 +21,7 @@ parse_trees = stanford_parser.parse_sents(sents)
 
 for pt, sent in zip(parse_trees, sents):
 	pt = list(pt)[0][0]
-	pt.draw()
+	proptree = PropertyTree.from_parsetree(pt)
+	add_properties(proptree)
+	dot_code = proptree_to_dot(proptree)
+	print(dot_code)

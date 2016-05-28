@@ -1,9 +1,12 @@
-S  : NP VP . : NP-VP : S
+SS  : NP VP . : NP-VP : SS
 
 VP : V NP : V-NP : V
 VP : V PP : PP-V : V
 VP : V ADJP : ADJP-V : V
 VP : V NP PP : PP-V, V-NP : V
+VP : V SS : V-SS : V
+
+SS1 : IN SS2 :: SS2
 
 NP : DT N : DT-N : N
 NP : NP1 PP : PP-NP1 : NP1

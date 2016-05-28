@@ -1,6 +1,7 @@
 from itertools import chain, islice, tee, takewhile, dropwhile, count
 from pprint import pformat, pprint
 from collections import namedtuple
+from random import choice
 import os
 import logging
 
@@ -178,6 +179,13 @@ class ConceptualGraph:
     def to_dot(self):
         dot_code = ['digraph{', 'rankdir=LR;']
 
+        cluster_dict = {n.subgraph:[] for n in self.nodes}
+        for n in self.nodes:
+            if n.id_ in cluster_dict:
+                continue
+            cluster_dict[n.subgraph].append(n.id_)
+
+
         subgraphs = {}
 
         for node in self.nodes:
@@ -189,6 +197,8 @@ class ConceptualGraph:
             if node.subgraph is None:
                 dot_code.append(line)
             else:
+                if node.id_ in cluster_dict:
+                    continue
                 if node.subgraph in subgraphs:
                     subgraphs[node.subgraph].append(line)
                 else:
@@ -200,8 +210,16 @@ class ConceptualGraph:
             dot_code.append('}')
 
         for edge in self.edges:
-            right = 'N' + str(edge.right.id_)
-            left  = 'N' + str(edge.left.id_)
+
+            left_id = edge.left.id_
+            if left_id in cluster_dict:
+                left_id = choice(cluster_dict[left_id])
+            
+            right_id = edge.right.id_
+            if right_id in cluster_dict:
+                right_id = choice(cluster_dict[right_id])
+            left  = 'N' + str(left_id)
+            right = 'N' + str(right_id)
             line  = [left, '->', right]
             dot_code.append(' '.join(line))
 
@@ -286,16 +304,16 @@ class GraphBuilder:
                     if isinstance(right, str):
                         logging.warn('String destination for subgraphs not implemented yet:' + tmp_right)
                     else:
-                        for i,sgr in enumerate(subgraph_roots):
+                        for sgr in subgraph_roots:
                             if right in sgr.descendant_or_self():
-                                right_subgraph = i
+                                right_subgraph = id(sgr)
                                 if isinstance(left, str):
-                                    left_subgraph = i
+                                    left_subgraph = id(sgr)
                                 break
                     if not isinstance(left, str):
-                        for i,sgr in enumerate(subgraph_roots):
+                        for sgr in subgraph_roots:
                             if left in sgr.descendant_or_self():
-                                left_subgraph = i
+                                left_subgraph = id(sgr)
                                 break
 
                 if left_node is None:
@@ -315,7 +333,10 @@ class GraphBuilder:
                 
                 graph.add_edge(left_node, right_node)
 
-            #print(graph.nodes)
+            # whenever something references a cluster
+            #(node transforming to itself)
+            # refer to random node of luster instead
+            #(since clusters cannot be referenced in dot)
 
             yield graph
 
@@ -425,7 +446,10 @@ class PatternMatcher:
                 #print(nodes, index)
                 logging.debug('Match, but not whole.')
             else:
-                logging.debug('Pattern matched!!!')
+                logging.info('Pattern matched: '
+                    + head_node['label']
+                    + ' : '
+                    + str([pt.varname for pt in pattern]))
                 yield tuple(match)
 
         else:
@@ -640,7 +664,7 @@ def main():
 
     sents = args[0]
 
-    with open('rules') as f:
+    with open('test_rules') as f:
         rules = f.read()
 
     matcher = PatternMatcher.from_str(rules)
